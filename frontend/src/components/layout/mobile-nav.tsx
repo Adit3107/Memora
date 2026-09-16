@@ -18,7 +18,7 @@ export function MobileNav() {
       </header>
 
       <nav
-        className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-6 gap-1 border-t bg-background/95 px-2 py-2 backdrop-blur lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-[repeat(7,minmax(0,1fr))] gap-1 border-t bg-background/95 px-2 py-2 backdrop-blur lg:hidden"
         aria-label="Mobile navigation"
       >
         {[...mainNavigation, ...accountNavigation].map((item) => (

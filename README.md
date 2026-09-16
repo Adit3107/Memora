@@ -12,3 +12,6 @@ added alongside it without reshaping the repository.
 cd frontend
 npm run dev
 ```
+
+Phase 1 is complete when `npm run lint` and `npm run build` pass inside
+`frontend/`. All product data is mock/local UI data only.

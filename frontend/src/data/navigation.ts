@@ -2,6 +2,7 @@ import {
   BookOpen,
   Home,
   Library,
+  PlusCircle,
   Search,
   Settings,
   UserRound,
@@ -27,6 +28,12 @@ export const mainNavigation: NavigationItem[] = [
     href: "/library",
     icon: Library,
     description: "All saved content",
+  },
+  {
+    title: "Save",
+    href: "/save",
+    icon: PlusCircle,
+    description: "Save a link or upload",
   },
   {
     title: "Search",

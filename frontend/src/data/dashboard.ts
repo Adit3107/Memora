@@ -41,15 +41,15 @@ export const dashboardOverview: DashboardOverviewItem[] = [
 export const quickActions: QuickAction[] = [
   {
     title: "Save content",
-    description: "Link saving arrives with ingestion.",
+    description: "Open the frontend save workflow.",
     icon: Link,
-    disabled: true,
+    href: "/save",
   },
   {
     title: "Upload file",
-    description: "File upload arrives in a later phase.",
+    description: "Open the upload placeholder flow.",
     icon: Upload,
-    disabled: true,
+    href: "/save",
   },
   {
     title: "Search memory",
