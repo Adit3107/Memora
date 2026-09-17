@@ -11,7 +11,8 @@ import (
 )
 
 type ContentHandler struct {
-	service *services.ContentService
+	service           *services.ContentService
+	contentTagService *services.ContentTagService
 }
 
 type contentRequest struct {
@@ -24,8 +25,11 @@ type contentRequest struct {
 	ThumbnailURL *string            `json:"thumbnail_url"`
 }
 
-func NewContentHandler(service *services.ContentService) *ContentHandler {
-	return &ContentHandler{service: service}
+func NewContentHandler(service *services.ContentService, contentTagService *services.ContentTagService) *ContentHandler {
+	return &ContentHandler{
+		service:           service,
+		contentTagService: contentTagService,
+	}
 }
 
 func (h *ContentHandler) Create(c *gin.Context) {
@@ -75,11 +79,13 @@ func (h *ContentHandler) Update(c *gin.Context) {
 }
 
 func (h *ContentHandler) Delete(c *gin.Context) {
-	if err := h.service.Delete(c.Param("id")); err != nil {
+	id := c.Param("id")
+	if err := h.service.Delete(id); err != nil {
 		handleServiceError(c, err)
 		return
 	}
 
+	h.contentTagService.RemoveContent(id)
 	response.Success(c, http.StatusOK, "Content deleted", nil)
 }
 

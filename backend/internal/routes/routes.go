@@ -12,10 +12,15 @@ func RegisterRoutes(router *gin.Engine) {
 	userRepo := repository.NewUserRepository()
 	spaceRepo := repository.NewSpaceRepository()
 	contentRepo := repository.NewContentRepository()
+	tagRepo := repository.NewTagRepository()
+	contentTagRepo := repository.NewContentTagRepository()
 
 	userHandler := handlers.NewUserHandler(services.NewUserService(userRepo))
 	spaceHandler := handlers.NewSpaceHandler(services.NewSpaceService(spaceRepo))
-	contentHandler := handlers.NewContentHandler(services.NewContentService(contentRepo))
+	contentTagService := services.NewContentTagService(contentRepo, tagRepo, contentTagRepo)
+	contentHandler := handlers.NewContentHandler(services.NewContentService(contentRepo), contentTagService)
+	tagHandler := handlers.NewTagHandler(services.NewTagService(tagRepo, contentTagRepo), contentTagService)
+	contentTagHandler := handlers.NewContentTagHandler(contentTagService)
 
 	api := router.Group("/api")
 
@@ -41,4 +46,15 @@ func RegisterRoutes(router *gin.Engine) {
 	content.GET("/:id", contentHandler.GetByID)
 	content.PUT("/:id", contentHandler.Update)
 	content.DELETE("/:id", contentHandler.Delete)
+	content.PUT("/:id/tags", contentTagHandler.SetTags)
+	content.GET("/:id/tags", contentTagHandler.ListTags)
+	content.DELETE("/:id/tags/:tagID", contentTagHandler.RemoveTag)
+
+	tags := api.Group("/tags")
+	tags.POST("", tagHandler.Create)
+	tags.GET("", tagHandler.List)
+	tags.GET("/:id", tagHandler.GetByID)
+	tags.PUT("/:id", tagHandler.Update)
+	tags.DELETE("/:id", tagHandler.Delete)
+	tags.GET("/:id/content", tagHandler.ListContent)
 }
