@@ -1,11 +1,16 @@
 package ingestion
 
-import "context"
+import (
+	"context"
+	"io"
+)
 
 type ExtractInput struct {
 	SourceURL   string
 	FileName    string
 	ContentType string
+	Body        io.Reader
+	FilePath    string
 }
 
 type Extractor interface {

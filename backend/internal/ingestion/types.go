@@ -39,6 +39,7 @@ type IngestionResult struct {
 	CleanText string `json:"clean_text"`
 
 	Transcript []TranscriptSegment `json:"transcript,omitempty"`
+	Pages      []DocumentPage      `json:"pages,omitempty"`
 	Metadata   map[string]string   `json:"metadata,omitempty"`
 }
 
@@ -46,6 +47,11 @@ type TranscriptSegment struct {
 	StartSeconds float64 `json:"start_seconds"`
 	EndSeconds   float64 `json:"end_seconds"`
 	Text         string  `json:"text"`
+}
+
+type DocumentPage struct {
+	Index int    `json:"index"`
+	Text  string `json:"text"`
 }
 
 // Why this file exists:
