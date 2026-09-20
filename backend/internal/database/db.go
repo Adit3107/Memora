@@ -1,10 +1,10 @@
 package database
 
 import (
-	"context" // Context is used for timeout on pinging the database.
+	"context"      // Context is used for timeout on pinging the database.
 	"database/sql" // database/sql is the standard library's generic SQL interface.
-	"errors" // errors is used to create error values.
-	"time" // time is used for setting connection pool lifetimes and ping timeouts.
+	"errors"       // errors is used to create error values.
+	"time"         // time is used for setting connection pool lifetimes and ping timeouts.
 
 	// Blank import registers the pgx driver with database/sql.
 	// We do not call pgx directly here; database/sql discovers it by driver name.
