@@ -46,3 +46,7 @@ func (h *IngestionHandler) IngestURL(c *gin.Context) {
 
 	response.Success(c, http.StatusCreated, "Content ingested", result)
 }
+
+// Why this file exists:
+// Handlers translate HTTP JSON into service input and service output into API responses.
+// This keeps request parsing and status codes out of the ingestion business logic.

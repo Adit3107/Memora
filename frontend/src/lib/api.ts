@@ -41,3 +41,7 @@ export async function ingestURL(
 
   return body.data;
 }
+
+// Why this file exists:
+// The frontend should call one typed API helper instead of scattering fetch details
+// through components. This mirrors the backend service boundary in TypeScript.

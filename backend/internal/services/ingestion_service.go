@@ -155,3 +155,8 @@ func IsIngestionClientError(err error) bool {
 		errors.Is(err, ingestion.ErrEmptyContent) ||
 		errors.Is(err, ingestion.ErrInaccessibleSource)
 }
+
+// Why this file exists:
+// The service coordinates the ingestion workflow: create content, mark status,
+// extract, clean, chunk, persist, and report the result.
+// It is the orchestration layer between HTTP handlers, extractors, and repositories.

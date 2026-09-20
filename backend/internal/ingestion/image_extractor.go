@@ -186,3 +186,8 @@ func safeImageExtension(fileName string) string {
 
 var _ Extractor = (*ImageExtractor)(nil)
 var _ OCRRunner = TesseractRunner{}
+
+// Why this file exists:
+// Images need OCR before they can become searchable text.
+// This extractor validates image data, records simple image metadata, and calls
+// Tesseract through a fixed command boundary instead of executing user input.

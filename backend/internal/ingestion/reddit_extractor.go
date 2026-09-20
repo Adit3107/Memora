@@ -186,3 +186,8 @@ func intString(value int) string {
 }
 
 var _ Extractor = (*RedditExtractor)(nil)
+
+// Why this file exists:
+// Reddit exposes public post data as nested JSON for accessible posts.
+// This extractor reads that source-specific structure and normalizes the post
+// title, body, author, subreddit, timestamp, and metadata for Memora.

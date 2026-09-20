@@ -411,3 +411,8 @@ func sharedStringValue(sharedStrings []string, rawIndex string) string {
 }
 
 var _ Extractor = (*DocumentExtractor)(nil)
+
+// Why this file exists:
+// Uploaded documents are binary streams, but Memora needs searchable text.
+// This extractor handles the supported document formats and preserves practical
+// references like pages, slides, sheets, and row counts for later retrieval.

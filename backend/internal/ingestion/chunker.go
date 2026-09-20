@@ -237,3 +237,8 @@ func overlapText(text string, maxCharacters int) string {
 	}
 	return strings.TrimSpace(text[start:])
 }
+
+// Why this file exists:
+// Embeddings work better on smaller pieces than on whole documents or transcripts.
+// This chunker creates deterministic chunks now and keeps source references
+// such as page numbers and timestamps for later search and citations.

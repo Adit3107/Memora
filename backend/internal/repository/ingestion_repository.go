@@ -129,3 +129,8 @@ func (r *IngestionRepository) setStatus(ctx context.Context, ingestionID string,
 
 	return nil
 }
+
+// Why this file exists:
+// Repositories are the database boundary in this backend.
+// This one stores ingestion state, extracted text, metadata, transcript/pages,
+// and chunks without mixing SQL into handlers or extraction code.

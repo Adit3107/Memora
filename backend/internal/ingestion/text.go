@@ -17,3 +17,7 @@ func joinText(parts []string) string {
 
 	return strings.Join(cleaned, "\n\n")
 }
+
+// Why this file exists:
+// Different extractors produce text with different spacing and line-break habits.
+// These helpers give the ingestion package one consistent way to join and trim text.

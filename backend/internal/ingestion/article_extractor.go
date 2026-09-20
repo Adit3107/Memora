@@ -219,3 +219,8 @@ func bestMainText(articleText []string, mainText []string, bodyText []string) st
 }
 
 var _ Extractor = (*WebArticleExtractor)(nil)
+
+// Why this file exists:
+// Web pages contain useful article text mixed with navigation, scripts, and layout.
+// This extractor fetches public HTML and turns the readable parts into Memora's
+// common IngestionResult without pretending every page is a perfect article.

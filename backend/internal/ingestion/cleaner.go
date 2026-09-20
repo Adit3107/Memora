@@ -122,3 +122,8 @@ func cleanPages(pages []DocumentPage) []DocumentPage {
 	}
 	return cleaned
 }
+
+// Why this file exists:
+// Extraction is source-specific, but chunking needs predictable text.
+// The cleaner removes obvious artifacts while preserving useful boundaries like
+// transcript timestamps and document page numbers.

@@ -334,3 +334,8 @@ func pathSegment(path string, index int) string {
 }
 
 var _ Extractor = (*YouTubeExtractor)(nil)
+
+// Why this file exists:
+// YouTube ingestion needs source-specific work: video ID parsing, public metadata,
+// and timed transcript handling. The output is still the same IngestionResult
+// shape so later cleaning, chunking, and persistence do not care about YouTube.
