@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { FormEvent, useMemo, useState } from "react";
 
 import {
@@ -9,6 +9,7 @@ import {
   supportedFileFormats,
 } from "@/data/save-content";
 import { spaces } from "@/data/content";
+import { ingestURL, type IngestURLResult } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { SaveInputType } from "@/types/save-content";
 
@@ -19,10 +20,14 @@ const fileTypes: SaveInputType[] = ["file", "image"];
 export function SaveContentForm() {
   const [inputType, setInputType] = useState<SaveInputType>("youtube");
   const [url, setUrl] = useState("");
+  const [userID, setUserID] = useState("");
+  const [spaceID, setSpaceID] = useState("");
   const [spaceSlug, setSpaceSlug] = useState(spaces[0]?.slug ?? "");
   const [selectedTags, setSelectedTags] = useState<string[]>(["RAG", "AI"]);
-  const [fileName, setFileName] = useState("");
   const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [result, setResult] = useState<IngestURLResult | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isFileInput = fileTypes.includes(inputType);
   const selectedSpace = useMemo(
@@ -38,22 +43,36 @@ export function SaveContentForm() {
     );
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setError("");
+    setMessage("");
+    setResult(null);
 
-    if (isFileInput && !fileName) {
-      setMessage("Choose a file placeholder before continuing.");
+    if (isFileInput) {
+      setError("File and image uploads need a multipart endpoint. URL ingestion is connected now.");
       return;
     }
 
-    if (!isFileInput && !url.trim()) {
-      setMessage("Enter a URL before continuing.");
+    if (!url.trim() || !userID.trim() || !spaceID.trim()) {
+      setError("Enter a URL, user ID, and space ID before saving.");
       return;
     }
 
-    setMessage(
-      "Phase 1 preview only. Nothing was uploaded, saved, processed, embedded, or sent to a backend."
-    );
+    setIsSubmitting(true);
+    try {
+      const saved = await ingestURL({
+        user_id: userID.trim(),
+        space_id: spaceID.trim(),
+        url: url.trim(),
+      });
+      setResult(saved);
+      setMessage(`Saved ${saved.title} with ${saved.chunk_count} chunk${saved.chunk_count === 1 ? "" : "s"}.`);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Ingestion failed.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -73,6 +92,8 @@ export function SaveContentForm() {
               onClick={() => {
                 setInputType(option.value);
                 setMessage("");
+                setError("");
+                setResult(null);
               }}
               type="button"
             >
@@ -99,9 +120,6 @@ export function SaveContentForm() {
                 <input
                   className="block w-full rounded-md border bg-background px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1 file:text-sm file:font-medium"
                   id="file-placeholder"
-                  onChange={(event) =>
-                    setFileName(event.target.files?.[0]?.name ?? "")
-                  }
                   type="file"
                 />
                 <p className="text-xs leading-5 text-muted-foreground">
@@ -127,7 +145,29 @@ export function SaveContentForm() {
 
             <div className="grid gap-5 md:grid-cols-2">
               <label className="space-y-2 text-sm font-medium">
-                Space
+                User ID
+                <input
+                  className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+                  onChange={(event) => setUserID(event.target.value)}
+                  placeholder="Existing backend user ID"
+                  value={userID}
+                />
+              </label>
+
+              <label className="space-y-2 text-sm font-medium">
+                Space ID
+                <input
+                  className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+                  onChange={(event) => setSpaceID(event.target.value)}
+                  placeholder="Existing backend space ID"
+                  value={spaceID}
+                />
+              </label>
+            </div>
+
+            <div className="grid gap-5 md:grid-cols-2">
+              <label className="space-y-2 text-sm font-medium">
+                Display Space
                 <select
                   className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
                   onChange={(event) => setSpaceSlug(event.target.value)}
@@ -188,24 +228,47 @@ export function SaveContentForm() {
               ))}
             </div>
             <p className="mt-4 text-sm leading-6 text-muted-foreground">
-              Future phases will extract transcripts, text, OCR, chunks,
-              embeddings, metadata, and citations. Phase 1 only represents the
-              workflow.
+              URL ingestion now extracts public content, normalizes text, creates
+              chunks, and stores processing status. Embeddings and search remain
+              for later phases.
             </p>
           </aside>
         </div>
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Button type="submit">Save to Memora</Button>
+          <Button disabled={isSubmitting} type="submit">
+            {isSubmitting ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                Processing
+              </>
+            ) : (
+              "Save to Memora"
+            )}
+          </Button>
           <p className="text-sm text-muted-foreground">
-            Mock action. No backend request is made.
+            {isSubmitting ? "Extracting and storing content." : "Sends a real ingestion request."}
           </p>
         </div>
 
         {message ? (
           <div className="mt-5 flex gap-3 rounded-md border bg-background p-4 text-sm">
             <CheckCircle2 className="size-5 shrink-0 text-muted-foreground" />
-            <p className="leading-6 text-muted-foreground">{message}</p>
+            <div className="space-y-1 leading-6 text-muted-foreground">
+              <p>{message}</p>
+              {result ? (
+                <p>
+                  Status: {result.status} · Content ID: {result.content_id}
+                </p>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
+        {error ? (
+          <div className="mt-5 flex gap-3 rounded-md border bg-background p-4 text-sm">
+            <AlertCircle className="size-5 shrink-0 text-muted-foreground" />
+            <p className="leading-6 text-muted-foreground">{error}</p>
           </div>
         ) : null}
       </section>
