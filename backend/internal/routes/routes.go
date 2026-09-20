@@ -16,6 +16,7 @@ func RegisterRoutes(router *gin.Engine, db *sql.DB) {
 	contentRepo := repository.NewPostgresContentRepository(db)
 	tagRepo := repository.NewPostgresTagRepository(db)
 	contentTagRepo := repository.NewPostgresContentTagRepository(db)
+	ingestionRepo := repository.NewPostgresIngestionRepository(db)
 
 	userHandler := handlers.NewUserHandler(services.NewUserService(userRepo))
 	spaceHandler := handlers.NewSpaceHandler(services.NewSpaceService(spaceRepo))
@@ -23,6 +24,7 @@ func RegisterRoutes(router *gin.Engine, db *sql.DB) {
 	contentHandler := handlers.NewContentHandler(services.NewContentService(contentRepo), contentTagService)
 	tagHandler := handlers.NewTagHandler(services.NewTagService(tagRepo, contentTagRepo), contentTagService)
 	contentTagHandler := handlers.NewContentTagHandler(contentTagService)
+	ingestionHandler := handlers.NewIngestionHandler(services.NewIngestionService(contentRepo, ingestionRepo))
 
 	api := router.Group("/api")
 
@@ -51,6 +53,9 @@ func RegisterRoutes(router *gin.Engine, db *sql.DB) {
 	content.PUT("/:id/tags", contentTagHandler.SetTags)
 	content.GET("/:id/tags", contentTagHandler.ListTags)
 	content.DELETE("/:id/tags/:tagID", contentTagHandler.RemoveTag)
+
+	ingestionRoutes := api.Group("/ingestion")
+	ingestionRoutes.POST("/url", ingestionHandler.IngestURL)
 
 	tags := api.Group("/tags")
 	tags.POST("", tagHandler.Create)
