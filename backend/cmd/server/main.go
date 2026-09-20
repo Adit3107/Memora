@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 
 	"memora-backend/internal/config"
 	"memora-backend/internal/database"
@@ -31,8 +32,24 @@ func main() {
 	}
 
 	router := gin.Default()
+	router.Use(corsMiddleware())
 	routes.RegisterRoutes(router, db)
 
 	fmt.Printf("Server is running on port %s\n", cfg.Port)
 	router.Run(":" + cfg.Port)
+}
+
+func corsMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+
+		if c.Request.Method == http.MethodOptions {
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+
+		c.Next()
+	}
 }
