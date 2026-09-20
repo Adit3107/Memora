@@ -28,14 +28,24 @@ const (
 )
 
 type IngestionResult struct {
-	SourceType  SourceType        `json:"source_type"`
-	Title       string            `json:"title"`
-	Description string            `json:"description"`
-	Author      string            `json:"author,omitempty"`
-	SourceURL   string            `json:"source_url,omitempty"`
-	RawText     string            `json:"raw_text"`
-	CleanText   string            `json:"clean_text"`
-	Metadata    map[string]string `json:"metadata,omitempty"`
+	SourceType SourceType `json:"source_type"`
+
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Author      string `json:"author,omitempty"`
+	SourceURL   string `json:"source_url,omitempty"`
+
+	RawText   string `json:"raw_text"`
+	CleanText string `json:"clean_text"`
+
+	Transcript []TranscriptSegment `json:"transcript,omitempty"`
+	Metadata   map[string]string   `json:"metadata,omitempty"`
+}
+
+type TranscriptSegment struct {
+	StartSeconds float64 `json:"start_seconds"`
+	EndSeconds   float64 `json:"end_seconds"`
+	Text         string  `json:"text"`
 }
 
 // Why this file exists:
