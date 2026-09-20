@@ -1,0 +1,60 @@
+package routes
+
+import (
+	"memora-backend/internal/handlers"
+	"memora-backend/internal/repository"
+	"memora-backend/internal/services"
+
+	"github.com/gin-gonic/gin"
+)
+
+func RegisterRoutes(router *gin.Engine) {
+	userRepo := repository.NewUserRepository()
+	spaceRepo := repository.NewSpaceRepository()
+	contentRepo := repository.NewContentRepository()
+	tagRepo := repository.NewTagRepository()
+	contentTagRepo := repository.NewContentTagRepository()
+
+	userHandler := handlers.NewUserHandler(services.NewUserService(userRepo))
+	spaceHandler := handlers.NewSpaceHandler(services.NewSpaceService(spaceRepo))
+	contentTagService := services.NewContentTagService(contentRepo, tagRepo, contentTagRepo)
+	contentHandler := handlers.NewContentHandler(services.NewContentService(contentRepo), contentTagService)
+	tagHandler := handlers.NewTagHandler(services.NewTagService(tagRepo, contentTagRepo), contentTagService)
+	contentTagHandler := handlers.NewContentTagHandler(contentTagService)
+
+	api := router.Group("/api")
+
+	api.GET("/health", handlers.HealthCheck)
+
+	users := api.Group("/users")
+	users.POST("", userHandler.Create)
+	users.GET("", userHandler.List)
+	users.GET("/:id", userHandler.GetByID)
+	users.PUT("/:id", userHandler.Update)
+	users.DELETE("/:id", userHandler.Delete)
+
+	spaces := api.Group("/spaces")
+	spaces.POST("", spaceHandler.Create)
+	spaces.GET("", spaceHandler.List)
+	spaces.GET("/:id", spaceHandler.GetByID)
+	spaces.PUT("/:id", spaceHandler.Update)
+	spaces.DELETE("/:id", spaceHandler.Delete)
+
+	content := api.Group("/content")
+	content.POST("", contentHandler.Create)
+	content.GET("", contentHandler.List)
+	content.GET("/:id", contentHandler.GetByID)
+	content.PUT("/:id", contentHandler.Update)
+	content.DELETE("/:id", contentHandler.Delete)
+	content.PUT("/:id/tags", contentTagHandler.SetTags)
+	content.GET("/:id/tags", contentTagHandler.ListTags)
+	content.DELETE("/:id/tags/:tagID", contentTagHandler.RemoveTag)
+
+	tags := api.Group("/tags")
+	tags.POST("", tagHandler.Create)
+	tags.GET("", tagHandler.List)
+	tags.GET("/:id", tagHandler.GetByID)
+	tags.PUT("/:id", tagHandler.Update)
+	tags.DELETE("/:id", tagHandler.Delete)
+	tags.GET("/:id/content", tagHandler.ListContent)
+}
