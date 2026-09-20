@@ -1,0 +1,44 @@
+package ingestion
+
+type SourceType string
+
+const (
+	SourceTypeArticle  SourceType = "article"
+	SourceTypeVideo    SourceType = "video"
+	SourceTypeDocument SourceType = "document"
+	SourceTypeImage    SourceType = "image"
+	SourceTypeText     SourceType = "text"
+)
+
+type DetectedContentType string
+
+const (
+	DetectedContentTypeYouTube    DetectedContentType = "youtube"
+	DetectedContentTypeInstagram  DetectedContentType = "instagram"
+	DetectedContentTypeFacebook   DetectedContentType = "facebook"
+	DetectedContentTypeReddit     DetectedContentType = "reddit"
+	DetectedContentTypeWebArticle DetectedContentType = "web_article"
+	DetectedContentTypePDF        DetectedContentType = "pdf"
+	DetectedContentTypeDOCX       DetectedContentType = "docx"
+	DetectedContentTypePPTX       DetectedContentType = "pptx"
+	DetectedContentTypeTXT        DetectedContentType = "txt"
+	DetectedContentTypeCSV        DetectedContentType = "csv"
+	DetectedContentTypeXLSX       DetectedContentType = "xlsx"
+	DetectedContentTypeImage      DetectedContentType = "image"
+)
+
+type IngestionResult struct {
+	SourceType  SourceType        `json:"source_type"`
+	Title       string            `json:"title"`
+	Description string            `json:"description"`
+	Author      string            `json:"author,omitempty"`
+	SourceURL   string            `json:"source_url,omitempty"`
+	RawText     string            `json:"raw_text"`
+	CleanText   string            `json:"clean_text"`
+	Metadata    map[string]string `json:"metadata,omitempty"`
+}
+
+// Why this file exists:
+// Ingestion converts many source formats into one common shape.
+// Later phases can chunk, embed, and search this result without knowing
+// whether the original source was a web page, video, document, image, or text file.
