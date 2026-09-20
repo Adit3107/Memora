@@ -1,6 +1,8 @@
 package routes
 
 import (
+	"database/sql"
+
 	"memora-backend/internal/handlers"
 	"memora-backend/internal/repository"
 	"memora-backend/internal/services"
@@ -8,12 +10,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func RegisterRoutes(router *gin.Engine) {
-	userRepo := repository.NewUserRepository()
-	spaceRepo := repository.NewSpaceRepository()
-	contentRepo := repository.NewContentRepository()
-	tagRepo := repository.NewTagRepository()
-	contentTagRepo := repository.NewContentTagRepository()
+func RegisterRoutes(router *gin.Engine, db *sql.DB) {
+	userRepo := repository.NewPostgresUserRepository(db)
+	spaceRepo := repository.NewPostgresSpaceRepository(db)
+	contentRepo := repository.NewPostgresContentRepository(db)
+	tagRepo := repository.NewPostgresTagRepository(db)
+	contentTagRepo := repository.NewPostgresContentTagRepository(db)
 
 	userHandler := handlers.NewUserHandler(services.NewUserService(userRepo))
 	spaceHandler := handlers.NewSpaceHandler(services.NewSpaceService(spaceRepo))

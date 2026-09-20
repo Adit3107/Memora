@@ -43,7 +43,9 @@ func (s *ContentTagService) SetContentTags(contentID string, input SetContentTag
 		tagIDs = append(tagIDs, tag.ID)
 	}
 
-	s.contentTagRepo.SetTags(contentID, tagIDs)
+	if err := s.contentTagRepo.SetTags(contentID, tagIDs); err != nil {
+		return models.ContentWithTags{}, err
+	}
 
 	return models.ContentWithTags{
 		Content: content,
@@ -57,7 +59,11 @@ func (s *ContentTagService) ListTagsForContent(contentID string) ([]models.Tag, 
 		return nil, err
 	}
 
-	tagIDs := s.contentTagRepo.ListTagIDs(contentID)
+	tagIDs, err := s.contentTagRepo.ListTagIDs(contentID)
+	if err != nil {
+		return nil, err
+	}
+
 	return s.resolveTagsForContent(content.UserID, tagIDs)
 }
 
@@ -76,8 +82,7 @@ func (s *ContentTagService) RemoveTagFromContent(contentID string, tagID string)
 		return ErrValidation
 	}
 
-	s.contentTagRepo.RemoveTag(contentID, tagID)
-	return nil
+	return s.contentTagRepo.RemoveTag(contentID, tagID)
 }
 
 func (s *ContentTagService) ListContentByTag(tagID string) ([]models.ContentWithTags, error) {
@@ -86,7 +91,11 @@ func (s *ContentTagService) ListContentByTag(tagID string) ([]models.ContentWith
 		return nil, err
 	}
 
-	contentIDs := s.contentTagRepo.ListContentIDsByTag(tagID)
+	contentIDs, err := s.contentTagRepo.ListContentIDsByTag(tagID)
+	if err != nil {
+		return nil, err
+	}
+
 	results := make([]models.ContentWithTags, 0, len(contentIDs))
 
 	for _, contentID := range contentIDs {
@@ -113,8 +122,8 @@ func (s *ContentTagService) ListContentByTag(tagID string) ([]models.ContentWith
 	return results, nil
 }
 
-func (s *ContentTagService) RemoveContent(contentID string) {
-	s.contentTagRepo.RemoveContent(contentID)
+func (s *ContentTagService) RemoveContent(contentID string) error {
+	return s.contentTagRepo.RemoveContent(contentID)
 }
 
 func (s *ContentTagService) resolveTagsForContent(userID string, tagIDs []string) ([]models.Tag, error) {
@@ -122,6 +131,8 @@ func (s *ContentTagService) resolveTagsForContent(userID string, tagIDs []string
 		return []models.Tag{}, nil
 	}
 
+	// The map is only for fast duplicate checking while handling this request.
+	// Tag data itself is persisted in PostgreSQL, not stored in this map.
 	seen := make(map[string]bool, len(tagIDs))
 	tags := make([]models.Tag, 0, len(tagIDs))
 
@@ -145,3 +156,8 @@ func (s *ContentTagService) resolveTagsForContent(userID string, tagIDs []string
 
 	return tags, nil
 }
+
+// Why this file exists:
+// This service keeps tag relationship rules away from HTTP handlers.
+// It answers: "Can this tag be attached to this content?"
+// The main rule is ownership: content and tags must belong to the same user.

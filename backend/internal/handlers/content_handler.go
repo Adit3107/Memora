@@ -49,7 +49,13 @@ func (h *ContentHandler) Create(c *gin.Context) {
 }
 
 func (h *ContentHandler) List(c *gin.Context) {
-	response.Success(c, http.StatusOK, "Content retrieved", h.service.List())
+	content, err := h.service.List()
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, "Content retrieved", content)
 }
 
 func (h *ContentHandler) GetByID(c *gin.Context) {
@@ -85,7 +91,10 @@ func (h *ContentHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	h.contentTagService.RemoveContent(id)
+	if err := h.contentTagService.RemoveContent(id); err != nil {
+		handleServiceError(c, err)
+		return
+	}
 	response.Success(c, http.StatusOK, "Content deleted", nil)
 }
 

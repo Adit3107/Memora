@@ -1,23 +1,50 @@
-// /internal folder means its for backend only
-
 package config
 
-import "os"
+import (
+	"os"
 
-type Config struct{
-	Port string
+	"github.com/joho/godotenv"
+)
+
+type Config struct {
+	Port        string
+	DatabaseURL string
+	Storage     StorageConfig
 }
 
-func Load() Config{ 
-	port := os.Getenv("PORT") // Get the value of the "PORT" environment variable. If it's not set, default to "8080".
-	if port == "" {
-		port = "8080"
-	}
+type StorageConfig struct {
+	AWSRegion string
+	S3Bucket  string
+}
+
+func Load() Config {
+	// godotenv loads backend/.env during local development.
+	// In production, environment variables usually come from the hosting platform.
+	_ = godotenv.Load()
+
+	port := getEnv("PORT", "8080")
 
 	return Config{
-		Port: port,
+		Port:        port,
+		DatabaseURL: os.Getenv("DATABASE_URL"),
+		Storage: StorageConfig{
+			AWSRegion: os.Getenv("AWS_REGION"),
+			S3Bucket:  os.Getenv("AWS_S3_BUCKET"),
+		},
 	}
 }
-// os is package which enable Go to interact with OS, including reading environment variables. The Load function retrieves the value of the "PORT" environment variable and returns a Config struct with the Port field set to that value (or "8080" if it's not set).
 
-// why two returns? The first return is for the Load function, which returns a Config struct. The second return is for the Config struct itself, which is being returned with the Port field set to the value of the "PORT" environment variable (or "8080" if it's not set). This allows other parts of the application to access the configuration settings easily.
+func getEnv(key string, fallback string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+
+	return value
+}
+
+// Why this file exists:
+// This file centralizes environment configuration for the backend.
+// Code outside config should use Config fields instead of repeatedly calling os.Getenv.
+// DATABASE_URL stays in .env because Neon credentials are secrets and must not be committed.
+// AWS credentials also stay in .env or the deployment platform; they must never go to frontend code.

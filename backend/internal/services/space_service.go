@@ -42,10 +42,10 @@ func (s *SpaceService) Create(input CreateSpaceInput) (models.Space, error) {
 		Description: strings.TrimSpace(input.Description),
 		CreatedAt:   now,
 		UpdatedAt:   now,
-	}), nil
+	})
 }
 
-func (s *SpaceService) List() []models.Space {
+func (s *SpaceService) List() ([]models.Space, error) {
 	return s.repo.List()
 }
 

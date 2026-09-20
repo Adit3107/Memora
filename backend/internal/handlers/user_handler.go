@@ -42,7 +42,13 @@ func (h *UserHandler) Create(c *gin.Context) {
 }
 
 func (h *UserHandler) List(c *gin.Context) {
-	response.Success(c, http.StatusOK, "Users retrieved", h.service.List())
+	users, err := h.service.List()
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, "Users retrieved", users)
 }
 
 func (h *UserHandler) GetByID(c *gin.Context) {

@@ -42,10 +42,10 @@ func (s *UserService) Create(input CreateUserInput) (models.User, error) {
 		Email:     email,
 		CreatedAt: now,
 		UpdatedAt: now,
-	}), nil
+	})
 }
 
-func (s *UserService) List() []models.User {
+func (s *UserService) List() ([]models.User, error) {
 	return s.repo.List()
 }
 

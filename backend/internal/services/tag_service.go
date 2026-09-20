@@ -41,10 +41,10 @@ func (s *TagService) Create(input CreateTagInput) (models.Tag, error) {
 		UserID:    userID,
 		Name:      name,
 		CreatedAt: time.Now().UTC(),
-	}), nil
+	})
 }
 
-func (s *TagService) List() []models.Tag {
+func (s *TagService) List() ([]models.Tag, error) {
 	return s.repo.List()
 }
 
@@ -75,8 +75,7 @@ func (s *TagService) Delete(id string) error {
 		return err
 	}
 
-	s.contentTagRepo.RemoveTagEverywhere(id)
-	return nil
+	return s.contentTagRepo.RemoveTagEverywhere(id)
 }
 
 func normalizeTagName(name string) string {

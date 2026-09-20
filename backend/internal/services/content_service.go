@@ -38,10 +38,10 @@ func (s *ContentService) Create(input CreateContentInput) (models.Content, error
 	content.CreatedAt = now
 	content.UpdatedAt = now
 
-	return s.repo.Create(content), nil
+	return s.repo.Create(content)
 }
 
-func (s *ContentService) List() []models.Content {
+func (s *ContentService) List() ([]models.Content, error) {
 	return s.repo.List()
 }
 
