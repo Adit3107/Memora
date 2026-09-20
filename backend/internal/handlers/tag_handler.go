@@ -46,7 +46,13 @@ func (h *TagHandler) Create(c *gin.Context) {
 }
 
 func (h *TagHandler) List(c *gin.Context) {
-	response.Success(c, http.StatusOK, "Tags retrieved", h.service.List())
+	tags, err := h.service.List()
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, "Tags retrieved", tags)
 }
 
 func (h *TagHandler) GetByID(c *gin.Context) {

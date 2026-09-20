@@ -1,84 +1,142 @@
 package repository
 
 import (
-	"sync"
+	"context"
+	"database/sql"
+	"errors"
 
 	"memora-backend/internal/models"
 )
 
 type UserRepository struct {
-	mu     sync.RWMutex
-	users  map[string]models.User
-	nextID int
+	// *sql.DB is a concurrency-safe connection pool, not one single connection.
+	db *sql.DB
 }
 
-func NewUserRepository() *UserRepository {
-	repo := &UserRepository{
-		users:  make(map[string]models.User),
-		nextID: 1,
+func NewPostgresUserRepository(db *sql.DB) *UserRepository {
+	return &UserRepository{db: db}
+}
+
+func (r *UserRepository) Create(user models.User) (models.User, error) {
+	ctx := context.Background()
+
+	// RETURNING lets Postgres send back generated/default fields such as id.
+	err := r.db.QueryRowContext(ctx, `
+		INSERT INTO users (name, email, created_at, updated_at)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, name, email, created_at, updated_at
+	`, user.Name, user.Email, user.CreatedAt, user.UpdatedAt).Scan(
+		&user.ID,
+		&user.Name,
+		&user.Email,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+	if err != nil {
+		return models.User{}, err
 	}
 
-	return repo
+	return user, nil
 }
 
-func (r *UserRepository) Create(user models.User) models.User {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+func (r *UserRepository) List() ([]models.User, error) {
+	ctx := context.Background()
 
-	user.ID = nextStringID(&r.nextID)
-	r.users[user.ID] = user
+	// QueryContext returns rows because SELECT can return many users.
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, name, email, created_at, updated_at
+		FROM users
+		ORDER BY created_at DESC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-	return user
-}
-
-func (r *UserRepository) List() []models.User {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	users := make([]models.User, 0, len(r.users))
-	for _, user := range r.users {
+	users := make([]models.User, 0)
+	for rows.Next() {
+		var user models.User
+		// Scan copies the current SQL row into the Go struct fields.
+		if err := rows.Scan(&user.ID, &user.Name, &user.Email, &user.CreatedAt, &user.UpdatedAt); err != nil {
+			continue
+		}
 		users = append(users, user)
 	}
 
-	return users
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return users, nil
 }
 
 func (r *UserRepository) GetByID(id string) (models.User, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	ctx := context.Background()
 
-	user, ok := r.users[id]
-	if !ok {
+	var user models.User
+	err := r.db.QueryRowContext(ctx, `
+		SELECT id, name, email, created_at, updated_at
+		FROM users
+		WHERE id = $1
+	`, id).Scan(&user.ID, &user.Name, &user.Email, &user.CreatedAt, &user.UpdatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		// Translate database-specific "no row" into our app-level not found error.
 		return models.User{}, ErrNotFound
+	}
+	if err != nil {
+		return models.User{}, err
 	}
 
 	return user, nil
 }
 
 func (r *UserRepository) Update(id string, user models.User) (models.User, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	ctx := context.Background()
 
-	existing, ok := r.users[id]
-	if !ok {
+	err := r.db.QueryRowContext(ctx, `
+		UPDATE users
+		SET name = $1, email = $2, updated_at = $3
+		WHERE id = $4
+		RETURNING id, name, email, created_at, updated_at
+	`, user.Name, user.Email, user.UpdatedAt, id).Scan(
+		&user.ID,
+		&user.Name,
+		&user.Email,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
 		return models.User{}, ErrNotFound
 	}
-
-	user.ID = id
-	user.CreatedAt = existing.CreatedAt
-	r.users[id] = user
+	if err != nil {
+		return models.User{}, err
+	}
 
 	return user, nil
 }
 
 func (r *UserRepository) Delete(id string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	ctx := context.Background()
 
-	if _, ok := r.users[id]; !ok {
+	result, err := r.db.ExecContext(ctx, `
+		DELETE FROM users WHERE id = $1
+	`, id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
 		return ErrNotFound
 	}
 
-	delete(r.users, id)
 	return nil
 }
+
+// Why this file exists:
+// This repository is the only place that knows SQL details for users.
+// Handlers/services call methods like Create and GetByID instead of writing SQL.
+// Parameter placeholders ($1, $2, ...) protect us from SQL injection by separating SQL from values.

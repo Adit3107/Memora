@@ -1,87 +1,136 @@
 package repository
 
-import "sync"
+import (
+	"context"
+	"database/sql"
+)
 
 type ContentTagRepository struct {
-	mu            sync.RWMutex
-	contentToTags map[string]map[string]bool
+	db *sql.DB
 }
 
-func NewContentTagRepository() *ContentTagRepository {
-	return &ContentTagRepository{
-		contentToTags: make(map[string]map[string]bool),
+func NewPostgresContentTagRepository(db *sql.DB) *ContentTagRepository {
+	return &ContentTagRepository{db: db}
+}
+
+func (r *ContentTagRepository) SetTags(contentID string, tagIDs []string) error {
+	ctx := context.Background()
+
+	// Transaction keeps the delete+insert replacement as one safe unit of work.
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
 	}
-}
+	defer tx.Rollback()
 
-func (r *ContentTagRepository) SetTags(contentID string, tagIDs []string) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	if _, err := tx.ExecContext(ctx, `
+		DELETE FROM content_tags WHERE content_id = $1
+	`, contentID); err != nil {
+		return err
+	}
 
-	tags := make(map[string]bool, len(tagIDs))
 	for _, tagID := range tagIDs {
-		tags[tagID] = true
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO content_tags (content_id, tag_id)
+			VALUES ($1, $2)
+			ON CONFLICT (content_id, tag_id) DO NOTHING
+		`, contentID, tagID); err != nil {
+			return err
+		}
 	}
 
-	r.contentToTags[contentID] = tags
+	return tx.Commit()
 }
 
-func (r *ContentTagRepository) ListTagIDs(contentID string) []string {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+func (r *ContentTagRepository) ListTagIDs(contentID string) ([]string, error) {
+	ctx := context.Background()
 
-	tagSet := r.contentToTags[contentID]
-	tagIDs := make([]string, 0, len(tagSet))
-	for tagID := range tagSet {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT tag_id
+		FROM content_tags
+		WHERE content_id = $1
+		ORDER BY created_at ASC
+	`, contentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	tagIDs := make([]string, 0)
+	for rows.Next() {
+		var tagID string
+		if err := rows.Scan(&tagID); err != nil {
+			return nil, err
+		}
 		tagIDs = append(tagIDs, tagID)
 	}
 
-	return tagIDs
-}
-
-func (r *ContentTagRepository) RemoveTag(contentID string, tagID string) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	tagSet := r.contentToTags[contentID]
-	if tagSet == nil {
-		return
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
-	delete(tagSet, tagID)
-	if len(tagSet) == 0 {
-		delete(r.contentToTags, contentID)
-	}
+	return tagIDs, nil
 }
 
-func (r *ContentTagRepository) ListContentIDsByTag(tagID string) []string {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+func (r *ContentTagRepository) RemoveTag(contentID string, tagID string) error {
+	ctx := context.Background()
+
+	_, err := r.db.ExecContext(ctx, `
+		DELETE FROM content_tags
+		WHERE content_id = $1 AND tag_id = $2
+	`, contentID, tagID)
+	return err
+}
+
+func (r *ContentTagRepository) ListContentIDsByTag(tagID string) ([]string, error) {
+	ctx := context.Background()
+
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT content_id
+		FROM content_tags
+		WHERE tag_id = $1
+		ORDER BY created_at DESC
+	`, tagID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
 	contentIDs := make([]string, 0)
-	for contentID, tagSet := range r.contentToTags {
-		if tagSet[tagID] {
-			contentIDs = append(contentIDs, contentID)
+	for rows.Next() {
+		var contentID string
+		if err := rows.Scan(&contentID); err != nil {
+			return nil, err
 		}
+		contentIDs = append(contentIDs, contentID)
 	}
 
-	return contentIDs
-}
-
-func (r *ContentTagRepository) RemoveTagEverywhere(tagID string) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	for contentID, tagSet := range r.contentToTags {
-		delete(tagSet, tagID)
-		if len(tagSet) == 0 {
-			delete(r.contentToTags, contentID)
-		}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
+
+	return contentIDs, nil
 }
 
-func (r *ContentTagRepository) RemoveContent(contentID string) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+func (r *ContentTagRepository) RemoveTagEverywhere(tagID string) error {
+	ctx := context.Background()
 
-	delete(r.contentToTags, contentID)
+	_, err := r.db.ExecContext(ctx, `
+		DELETE FROM content_tags WHERE tag_id = $1
+	`, tagID)
+	return err
 }
+
+func (r *ContentTagRepository) RemoveContent(contentID string) error {
+	ctx := context.Background()
+
+	_, err := r.db.ExecContext(ctx, `
+		DELETE FROM content_tags WHERE content_id = $1
+	`, contentID)
+	return err
+}
+
+// Why this file exists:
+// content_tags is a join table because content and tags are many-to-many.
+// One content item can have many tags, and one tag can belong to many content items.
+// The database primary key prevents duplicate tag links for the same content item.

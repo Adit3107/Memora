@@ -44,7 +44,13 @@ func (h *SpaceHandler) Create(c *gin.Context) {
 }
 
 func (h *SpaceHandler) List(c *gin.Context) {
-	response.Success(c, http.StatusOK, "Spaces retrieved", h.service.List())
+	spaces, err := h.service.List()
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, "Spaces retrieved", spaces)
 }
 
 func (h *SpaceHandler) GetByID(c *gin.Context) {

@@ -1,82 +1,204 @@
 package repository
 
 import (
-	"sync"
+	"context"
+	"database/sql"
+	"errors"
 
 	"memora-backend/internal/models"
 )
 
 type ContentRepository struct {
-	mu       sync.RWMutex
-	contents map[string]models.Content
-	nextID   int
+	// *sql.DB is shared by all repositories. It manages a pool of DB connections.
+	db *sql.DB
 }
 
-func NewContentRepository() *ContentRepository {
-	return &ContentRepository{
-		contents: make(map[string]models.Content),
-		nextID:   1,
+func NewPostgresContentRepository(db *sql.DB) *ContentRepository {
+	return &ContentRepository{db: db}
+}
+
+func (r *ContentRepository) Create(content models.Content) (models.Content, error) {
+	ctx := context.Background()
+
+	// RETURNING asks Postgres to send back generated values like id.
+	err := r.db.QueryRowContext(ctx, `
+		INSERT INTO content (
+			user_id, space_id, title, description, type,
+			source_url, thumbnail_url, created_at, updated_at
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		RETURNING id, user_id, space_id, title, description, type,
+			source_url, thumbnail_url, created_at, updated_at
+	`,
+		content.UserID,
+		content.SpaceID,
+		content.Title,
+		content.Description,
+		content.Type,
+		content.SourceURL,
+		content.ThumbnailURL,
+		content.CreatedAt,
+		content.UpdatedAt,
+	).Scan(
+		&content.ID,
+		&content.UserID,
+		&content.SpaceID,
+		&content.Title,
+		&content.Description,
+		&content.Type,
+		&content.SourceURL,
+		&content.ThumbnailURL,
+		&content.CreatedAt,
+		&content.UpdatedAt,
+	)
+	if err != nil {
+		return models.Content{}, err
 	}
+
+	return content, nil
 }
 
-func (r *ContentRepository) Create(content models.Content) models.Content {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+func (r *ContentRepository) List() ([]models.Content, error) {
+	ctx := context.Background()
 
-	content.ID = nextStringID(&r.nextID)
-	r.contents[content.ID] = content
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, user_id, space_id, title, description, type,
+			source_url, thumbnail_url, created_at, updated_at
+		FROM content
+		ORDER BY created_at DESC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-	return content
-}
-
-func (r *ContentRepository) List() []models.Content {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	contents := make([]models.Content, 0, len(r.contents))
-	for _, content := range r.contents {
+	contents := make([]models.Content, 0)
+	for rows.Next() {
+		var content models.Content
+		if err := scanContent(rows, &content); err != nil {
+			return nil, err
+		}
 		contents = append(contents, content)
 	}
 
-	return contents
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return contents, nil
 }
 
 func (r *ContentRepository) GetByID(id string) (models.Content, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	ctx := context.Background()
 
-	content, ok := r.contents[id]
-	if !ok {
+	var content models.Content
+	err := r.db.QueryRowContext(ctx, `
+		SELECT id, user_id, space_id, title, description, type,
+			source_url, thumbnail_url, created_at, updated_at
+		FROM content
+		WHERE id = $1
+	`, id).Scan(
+		&content.ID,
+		&content.UserID,
+		&content.SpaceID,
+		&content.Title,
+		&content.Description,
+		&content.Type,
+		&content.SourceURL,
+		&content.ThumbnailURL,
+		&content.CreatedAt,
+		&content.UpdatedAt,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
 		return models.Content{}, ErrNotFound
+	}
+	if err != nil {
+		return models.Content{}, err
 	}
 
 	return content, nil
 }
 
 func (r *ContentRepository) Update(id string, content models.Content) (models.Content, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	ctx := context.Background()
 
-	existing, ok := r.contents[id]
-	if !ok {
+	err := r.db.QueryRowContext(ctx, `
+		UPDATE content
+		SET user_id = $1, space_id = $2, title = $3, description = $4,
+			type = $5, source_url = $6, thumbnail_url = $7, updated_at = $8
+		WHERE id = $9
+		RETURNING id, user_id, space_id, title, description, type,
+			source_url, thumbnail_url, created_at, updated_at
+	`,
+		content.UserID,
+		content.SpaceID,
+		content.Title,
+		content.Description,
+		content.Type,
+		content.SourceURL,
+		content.ThumbnailURL,
+		content.UpdatedAt,
+		id,
+	).Scan(
+		&content.ID,
+		&content.UserID,
+		&content.SpaceID,
+		&content.Title,
+		&content.Description,
+		&content.Type,
+		&content.SourceURL,
+		&content.ThumbnailURL,
+		&content.CreatedAt,
+		&content.UpdatedAt,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
 		return models.Content{}, ErrNotFound
 	}
-
-	content.ID = id
-	content.CreatedAt = existing.CreatedAt
-	r.contents[id] = content
+	if err != nil {
+		return models.Content{}, err
+	}
 
 	return content, nil
 }
 
 func (r *ContentRepository) Delete(id string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	ctx := context.Background()
 
-	if _, ok := r.contents[id]; !ok {
+	result, err := r.db.ExecContext(ctx, `
+		DELETE FROM content WHERE id = $1
+	`, id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
 		return ErrNotFound
 	}
 
-	delete(r.contents, id)
 	return nil
 }
+
+func scanContent(rows *sql.Rows, content *models.Content) error {
+	// Scan copies SQL column values into Go struct fields in the same order as SELECT.
+	return rows.Scan(
+		&content.ID,
+		&content.UserID,
+		&content.SpaceID,
+		&content.Title,
+		&content.Description,
+		&content.Type,
+		&content.SourceURL,
+		&content.ThumbnailURL,
+		&content.CreatedAt,
+		&content.UpdatedAt,
+	)
+}
+
+// Why this file exists:
+// This repository persists content metadata in PostgreSQL.
+// It stores only metadata, not original files, transcripts, chunks, embeddings, or OCR output.
+// SQL placeholders like $1 keep user values separate from SQL text and protect against injection.
