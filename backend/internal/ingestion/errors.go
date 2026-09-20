@@ -7,6 +7,7 @@ var (
 	ErrInaccessibleSource    = errors.New("source could not be accessed")
 	ErrEmptyContent          = errors.New("extracted content is empty")
 	ErrInvalidURL            = errors.New("invalid url")
+	ErrUnexpectedContentType = errors.New("unexpected content type")
 )
 
 // Why this file exists:
