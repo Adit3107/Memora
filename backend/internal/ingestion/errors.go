@@ -9,6 +9,7 @@ var (
 	ErrInvalidURL            = errors.New("invalid url")
 	ErrUnexpectedContentType = errors.New("unexpected content type")
 	ErrExtractionFailed      = errors.New("extraction failed")
+	ErrTranscriptUnavailable = errors.New("youtube transcript is unavailable")
 )
 
 // Why this file exists:

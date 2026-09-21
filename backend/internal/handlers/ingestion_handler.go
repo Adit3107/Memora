@@ -78,6 +78,16 @@ func (h *IngestionHandler) IngestFile(c *gin.Context) {
 	response.Success(c, http.StatusCreated, "Content ingested", result)
 }
 
+func (h *IngestionHandler) GetByID(c *gin.Context) {
+	result, err := h.service.GetIngestionResult(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, "Ingestion result fetched", result)
+}
+
 // Why this file exists:
 // Handlers translate HTTP JSON into service input and service output into API responses.
 // This keeps request parsing and status codes out of the ingestion business logic.

@@ -34,6 +34,32 @@ On startup, the backend:
 go run ./cmd/server
 ```
 
+## YouTube Transcript Ingestion
+
+The current video ingestion path is intentionally narrow:
+
+```text
+YouTube URL
+-> Go validates URL and extracts video ID
+-> Python /extract/youtube
+-> youtube-transcript-api
+-> Go cleaning/chunking/persistence
+```
+
+Restart `go run ./cmd/server`, then send **POST**
+`http://localhost:8080/api/ingestion/url` in Postman, Body -> raw -> JSON:
+
+```json
+{
+  "user_id": "67a79aff-376d-48a7-af69-f087d46d313e",
+  "space_id": "2e96706f-8134-448b-918d-979aeb0500bc",
+  "url": "https://youtu.be/nlz9j-r0U9U"
+}
+```
+
+Use the returned `ingestion_id` with `GET /api/ingestion/:id` to inspect
+`clean_text`, `transcript`, and metadata.
+
 ## Current Persistence
 
 - Users are persisted in PostgreSQL.

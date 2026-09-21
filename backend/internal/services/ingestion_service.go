@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 
 type IngestionService struct {
 	contentRepo    *repository.ContentRepository
+	spaceRepo      *repository.SpaceRepository
 	ingestionRepo  *repository.IngestionRepository
 	extractors     map[ingestion.DetectedContentType]ingestion.Extractor
 	fileExtractors map[ingestion.DetectedContentType]ingestion.Extractor
@@ -45,15 +47,17 @@ type IngestResult struct {
 
 type IngestURLResult = IngestResult
 
-func NewIngestionService(contentRepo *repository.ContentRepository, ingestionRepo *repository.IngestionRepository, aiServiceURL string) *IngestionService {
+type IngestionDetail = repository.StoredIngestionResult
+
+func NewIngestionService(contentRepo *repository.ContentRepository, spaceRepo *repository.SpaceRepository, ingestionRepo *repository.IngestionRepository, aiServiceURL string) *IngestionService {
 	pythonClient := ingestion.NewPythonExtractionClient(aiServiceURL, nil)
 
 	return &IngestionService{
 		contentRepo:   contentRepo,
+		spaceRepo:     spaceRepo,
 		ingestionRepo: ingestionRepo,
 		extractors: map[ingestion.DetectedContentType]ingestion.Extractor{
-			ingestion.DetectedContentTypeYouTube:    ingestion.NewYouTubeExtractor(nil),
-			ingestion.DetectedContentTypeReddit:     ingestion.NewRedditExtractor(nil),
+			ingestion.DetectedContentTypeYouTube:    ingestion.NewYouTubeExtractor(pythonClient),
 			ingestion.DetectedContentTypeWebArticle: ingestion.NewWebArticleExtractor(nil),
 		},
 		fileExtractors: map[ingestion.DetectedContentType]ingestion.Extractor{
@@ -72,7 +76,7 @@ func NewIngestionService(contentRepo *repository.ContentRepository, ingestionRep
 func (s *IngestionService) IngestURL(ctx context.Context, input IngestURLInput) (IngestURLResult, error) {
 	userID := strings.TrimSpace(input.UserID)
 	spaceID := strings.TrimSpace(input.SpaceID)
-	sourceURL := strings.TrimSpace(input.URL)
+	sourceURL := ingestion.NormalizeSourceURL(input.URL)
 	if userID == "" || spaceID == "" || sourceURL == "" {
 		return IngestURLResult{}, ErrValidation
 	}
@@ -98,6 +102,14 @@ func (s *IngestionService) IngestURL(ctx context.Context, input IngestURLInput) 
 			SourceURL: sourceURL,
 		},
 	})
+}
+
+func (s *IngestionService) GetIngestionResult(ctx context.Context, ingestionID string) (IngestionDetail, error) {
+	ingestionID = strings.TrimSpace(ingestionID)
+	if ingestionID == "" {
+		return IngestionDetail{}, ErrValidation
+	}
+	return s.ingestionRepo.GetByID(ctx, ingestionID)
 }
 
 func (s *IngestionService) IngestFile(ctx context.Context, input IngestFileInput) (IngestResult, error) {
@@ -139,7 +151,7 @@ func modelContentTypeForDetected(detected ingestion.DetectedContentType) models.
 		return models.ContentTypeVideo
 	case ingestion.DetectedContentTypeImage:
 		return models.ContentTypeImage
-	case ingestion.DetectedContentTypeReddit, ingestion.DetectedContentTypeWebArticle:
+	case ingestion.DetectedContentTypeWebArticle:
 		return models.ContentTypeArticle
 	default:
 		return models.ContentTypeDocument
@@ -168,7 +180,8 @@ func IsIngestionClientError(err error) bool {
 		errors.Is(err, ingestion.ErrUnexpectedContentType) ||
 		errors.Is(err, ingestion.ErrEmptyContent) ||
 		errors.Is(err, ingestion.ErrInaccessibleSource) ||
-		errors.Is(err, ingestion.ErrExtractionFailed)
+		errors.Is(err, ingestion.ErrExtractionFailed) ||
+		errors.Is(err, ingestion.ErrTranscriptUnavailable)
 }
 
 type runIngestionInput struct {
@@ -182,6 +195,10 @@ type runIngestionInput struct {
 }
 
 func (s *IngestionService) runIngestion(ctx context.Context, input runIngestionInput) (IngestResult, error) {
+	if err := s.validateSpace(input.userID, input.spaceID); err != nil {
+		return IngestResult{}, err
+	}
+
 	now := time.Now().UTC()
 	content, err := s.contentRepo.Create(models.Content{
 		UserID:      input.userID,
@@ -204,30 +221,42 @@ func (s *IngestionService) runIngestion(ctx context.Context, input runIngestionI
 	if err := s.ingestionRepo.MarkProcessing(ctx, ingestionID); err != nil {
 		return IngestResult{}, err
 	}
+	slog.Info("ingestion processing", "content_id", content.ID, "ingestion_id", ingestionID, "content_type", input.contentType)
+	markFailed := func(stage string, cause error) {
+		// Cancellation must not leave a record stuck in processing. Use a short
+		// independent deadline only for recording the failure, never extraction.
+		failureCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		if persistErr := s.ingestionRepo.MarkFailed(failureCtx, ingestionID, cause.Error()); persistErr != nil {
+			slog.Error("ingestion failure status could not be saved", "ingestion_id", ingestionID, "error", persistErr)
+		}
+		slog.Error("ingestion failed", "ingestion_id", ingestionID, "stage", stage, "error", cause.Error())
+	}
 
 	extracted, err := input.extractor.Extract(ctx, input.extractInput)
 	if err != nil {
-		_ = s.ingestionRepo.MarkFailed(ctx, ingestionID, err.Error())
+		markFailed("extraction", err)
 		return IngestResult{}, err
 	}
 
 	cleaned, err := ingestion.CleanIngestionResult(extracted)
 	if err != nil {
-		_ = s.ingestionRepo.MarkFailed(ctx, ingestionID, err.Error())
+		markFailed("cleaning", err)
 		return IngestResult{}, err
 	}
 
 	chunks, err := ingestion.ChunkIngestionResult(cleaned, s.chunkConfig)
 	if err != nil {
-		_ = s.ingestionRepo.MarkFailed(ctx, ingestionID, err.Error())
+		markFailed("chunking", err)
 		return IngestResult{}, err
 	}
 
 	if err := s.ingestionRepo.SaveCompleted(ctx, ingestionID, content.ID, cleaned, chunks); err != nil {
-		_ = s.ingestionRepo.MarkFailed(ctx, ingestionID, err.Error())
+		markFailed("persistence", err)
 		return IngestResult{}, err
 	}
 
+	slog.Info("ingestion completed", "content_id", content.ID, "ingestion_id", ingestionID, "chunk_count", len(chunks))
 	return IngestResult{
 		ContentID:   content.ID,
 		IngestionID: ingestionID,
@@ -236,6 +265,18 @@ func (s *IngestionService) runIngestion(ctx context.Context, input runIngestionI
 		ContentType: input.contentType,
 		ChunkCount:  len(chunks),
 	}, nil
+}
+
+func (s *IngestionService) validateSpace(userID string, spaceID string) error {
+	space, err := s.spaceRepo.GetByID(spaceID)
+	if err != nil {
+		return err
+	}
+	if space.UserID != userID {
+		return repository.ErrNotFound
+	}
+
+	return nil
 }
 
 // Why this file exists:

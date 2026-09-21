@@ -52,6 +52,7 @@ Python is a specialized extraction service. It should handle:
 - DOCX extraction
 - PPTX extraction
 - OCR through Tesseract
+- YouTube transcript retrieval through youtube-transcript-api
 - future AI utilities in later phases
 
 Python should not own:
@@ -69,8 +70,8 @@ Prefer Go for:
 
 - content type detection
 - web/article extraction
-- YouTube orchestration and transcript normalization
-- Reddit extraction
+- YouTube URL validation and orchestration
+- transcript normalization
 - TXT extraction
 - CSV extraction
 - basic XLSX extraction when simple sheet/cell text is enough
@@ -84,6 +85,7 @@ Prefer Python for:
 - richer PDF extraction
 - richer DOCX extraction
 - richer PPTX extraction
+- YouTube transcript retrieval
 
 TXT and CSV can stay in Go because the standard library handles them simply.
 
@@ -136,12 +138,11 @@ Go should call Python when:
 
 - the content type is an image that needs OCR
 - a document format needs richer parsing than the current Go extractor provides
+- the source is a YouTube URL and transcript retrieval uses youtube-transcript-api
 - a future Phase 5+ AI operation requires Python libraries
 
 Go should not call Python when:
 
-- the source is a YouTube URL and Go can retrieve public metadata/transcripts
-- the source is a Reddit post and Go can use public JSON
 - the source is a normal web article and Go can parse useful HTML
 - the source is TXT, CSV, or basic XLSX
 - the work is persistence, status tracking, or chunking
@@ -158,8 +159,9 @@ Go should not call Python when:
 | S3 ownership | yes | no |
 | Ingestion orchestration | yes | no |
 | URL detection | yes | no |
-| YouTube ingestion | yes | optional only with a specific technical reason |
-| Reddit ingestion | yes | no |
+| YouTube URL detection | yes | no |
+| YouTube transcript normalization | yes | retrieval only |
+| YouTube transcript retrieval | orchestration only | yes, through youtube-transcript-api |
 | Web/article ingestion | yes | optional only with a specific technical reason |
 | PDF extraction | no, except fallback/basic tests | yes |
 | DOCX extraction | no, except fallback/basic tests | yes |

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"memora-backend/internal/ingestion"
@@ -22,8 +23,66 @@ type IngestionRepository struct {
 	db *sql.DB
 }
 
+type StoredIngestionResult struct {
+	ID           string                        `json:"id"`
+	ContentID    string                        `json:"content_id"`
+	Status       IngestionStatus               `json:"status"`
+	ErrorMessage string                        `json:"error_message"`
+	RawText      string                        `json:"raw_text"`
+	CleanText    string                        `json:"clean_text"`
+	Metadata     map[string]string             `json:"metadata"`
+	Transcript   []ingestion.TranscriptSegment `json:"transcript"`
+	Pages        []ingestion.DocumentPage      `json:"pages"`
+	CreatedAt    time.Time                     `json:"created_at"`
+	UpdatedAt    time.Time                     `json:"updated_at"`
+}
+
 func NewPostgresIngestionRepository(db *sql.DB) *IngestionRepository {
 	return &IngestionRepository{db: db}
+}
+
+func (r *IngestionRepository) GetByID(ctx context.Context, ingestionID string) (StoredIngestionResult, error) {
+	var result StoredIngestionResult
+	var metadataJSON []byte
+	var transcriptJSON []byte
+	var pagesJSON []byte
+
+	err := r.db.QueryRowContext(ctx, `
+		SELECT id, content_id, status, error_message, raw_text, clean_text,
+			metadata, transcript, pages, created_at, updated_at
+		FROM ingestion_results
+		WHERE id = $1
+	`, ingestionID).Scan(
+		&result.ID,
+		&result.ContentID,
+		&result.Status,
+		&result.ErrorMessage,
+		&result.RawText,
+		&result.CleanText,
+		&metadataJSON,
+		&transcriptJSON,
+		&pagesJSON,
+		&result.CreatedAt,
+		&result.UpdatedAt,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return StoredIngestionResult{}, ErrNotFound
+	}
+	if err != nil {
+		return StoredIngestionResult{}, err
+	}
+
+	if err := json.Unmarshal(metadataJSON, &result.Metadata); err != nil {
+		return StoredIngestionResult{}, err
+	}
+	if err := json.Unmarshal(transcriptJSON, &result.Transcript); err != nil {
+		return StoredIngestionResult{}, err
+	}
+	if err := json.Unmarshal(pagesJSON, &result.Pages); err != nil {
+		return StoredIngestionResult{}, err
+	}
+
+	return result, nil
 }
 
 func (r *IngestionRepository) CreatePending(ctx context.Context, contentID string) (string, error) {

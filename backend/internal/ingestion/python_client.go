@@ -39,6 +39,55 @@ func (c *PythonExtractionClient) ExtractImage(ctx context.Context, input Extract
 	return c.extractFile(ctx, "/extract/image", SourceTypeImage, input)
 }
 
+func (c *PythonExtractionClient) ExtractYouTubeTranscript(ctx context.Context, sourceURL string) (pythonYouTubeTranscriptResponse, error) {
+	if c.baseURL == "" {
+		return pythonYouTubeTranscriptResponse{}, ErrInaccessibleSource
+	}
+
+	endpoint, err := c.endpoint("/extract/youtube")
+	if err != nil {
+		return pythonYouTubeTranscriptResponse{}, err
+	}
+
+	requestBody, err := json.Marshal(pythonYouTubeTranscriptRequest{URL: sourceURL})
+	if err != nil {
+		return pythonYouTubeTranscriptResponse{}, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(requestBody))
+	if err != nil {
+		return pythonYouTubeTranscriptResponse{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return pythonYouTubeTranscriptResponse{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return pythonYouTubeTranscriptResponse{}, fmt.Errorf("%w: python service returned %d", ErrExtractionFailed, resp.StatusCode)
+	}
+
+	var payload pythonYouTubeTranscriptResponse
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 10*1024*1024)).Decode(&payload); err != nil {
+		return pythonYouTubeTranscriptResponse{}, err
+	}
+	if !payload.Success {
+		message := strings.TrimSpace(payload.Error)
+		if message == "" {
+			return pythonYouTubeTranscriptResponse{}, ErrTranscriptUnavailable
+		}
+		if message == ErrTranscriptUnavailable.Error() {
+			return pythonYouTubeTranscriptResponse{}, ErrTranscriptUnavailable
+		}
+		return pythonYouTubeTranscriptResponse{}, fmt.Errorf("%w: %s", ErrExtractionFailed, message)
+	}
+
+	return payload, nil
+}
+
 func (c *PythonExtractionClient) extractFile(ctx context.Context, endpointPath string, sourceType SourceType, input ExtractInput) (IngestionResult, error) {
 	if c.baseURL == "" {
 		return IngestionResult{}, ErrInaccessibleSource
@@ -171,6 +220,20 @@ type pythonExtractionResponse struct {
 	Error       string            `json:"error"`
 }
 
+type pythonYouTubeTranscriptRequest struct {
+	URL string `json:"url"`
+}
+
+type pythonYouTubeTranscriptResponse struct {
+	Success        bool                `json:"success"`
+	Title          string              `json:"title"`
+	TranscriptText string              `json:"transcript_text"`
+	CombinedText   string              `json:"combined_text"`
+	Transcript     []TranscriptSegment `json:"transcript"`
+	Metadata       map[string]string   `json:"metadata"`
+	Error          string              `json:"error"`
+}
+
 type PythonDocumentExtractor struct {
 	client *PythonExtractionClient
 }
@@ -205,6 +268,7 @@ var _ Extractor = (*PythonDocumentExtractor)(nil)
 var _ Extractor = (*PythonImageExtractor)(nil)
 
 // Why this file exists:
-// Go owns orchestration, but Python owns richer document/OCR extraction.
+// Go owns orchestration, but Python owns richer extraction tasks and YouTube
+// transcript retrieval where the maintained Python library is the better fit.
 // This client is the service-to-service HTTP boundary between the Go backend
 // and the internal FastAPI extraction service.

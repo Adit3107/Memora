@@ -9,7 +9,7 @@ import (
 )
 
 func DetectURL(rawURL string) (DetectedContentType, error) {
-	parsedURL, err := url.Parse(strings.TrimSpace(rawURL))
+	parsedURL, err := url.Parse(NormalizeSourceURL(rawURL))
 	if err != nil {
 		return "", ErrInvalidURL
 	}
@@ -25,15 +25,25 @@ func DetectURL(rawURL string) (DetectedContentType, error) {
 	switch {
 	case isYouTubeHost(host):
 		return DetectedContentTypeYouTube, nil
-	case isInstagramHost(host):
-		return DetectedContentTypeInstagram, nil
-	case isFacebookHost(host):
-		return DetectedContentTypeFacebook, nil
-	case isRedditHost(host):
-		return DetectedContentTypeReddit, nil
 	default:
 		return DetectedContentTypeWebArticle, nil
 	}
+}
+
+func NormalizeSourceURL(rawURL string) string {
+	value := strings.TrimSpace(rawURL)
+	if strings.HasPrefix(value, "<") && strings.HasSuffix(value, ">") {
+		value = strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(value, "<"), ">"))
+	}
+
+	if strings.HasPrefix(value, "[") {
+		labelEnd := strings.Index(value, "](")
+		if labelEnd > 0 && strings.HasSuffix(value, ")") {
+			value = strings.TrimSpace(value[labelEnd+2 : len(value)-1])
+		}
+	}
+
+	return value
 }
 
 func DetectFile(fileName string, mimeType string) (DetectedContentType, error) {
@@ -68,18 +78,6 @@ func normalizedMediaType(mimeType string) string {
 
 func isYouTubeHost(host string) bool {
 	return host == "youtube.com" || host == "m.youtube.com" || host == "youtu.be"
-}
-
-func isInstagramHost(host string) bool {
-	return host == "instagram.com"
-}
-
-func isFacebookHost(host string) bool {
-	return host == "facebook.com" || host == "m.facebook.com" || host == "fb.watch"
-}
-
-func isRedditHost(host string) bool {
-	return host == "reddit.com" || host == "old.reddit.com"
 }
 
 func detectByMIMEType(mediaType string) (DetectedContentType, bool) {

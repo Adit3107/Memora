@@ -1,6 +1,7 @@
-from app.models.extraction import ExtractionResponse
+from app.models.extraction import ExtractionResponse, YouTubeTranscriptRequest, YouTubeTranscriptResponse
 from app.services.documents import extract_document
 from app.services.images import extract_image
+from app.services.videos import extract_youtube_transcript
 from fastapi import APIRouter, File, Form, UploadFile
 
 router = APIRouter(prefix="/extract")
@@ -32,6 +33,11 @@ async def image(
     )
 
 
+@router.post("/youtube", response_model=YouTubeTranscriptResponse)
+def youtube(request: YouTubeTranscriptRequest) -> YouTubeTranscriptResponse:
+    return extract_youtube_transcript(url=request.url)
+
+
 # Why this file exists:
 # Go sends trusted internal extraction requests here. The route layer only reads
-# uploaded bytes and delegates parsing/OCR to service functions.
+# uploaded bytes or validated URLs and delegates parsing/OCR to service functions.

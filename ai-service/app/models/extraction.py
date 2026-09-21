@@ -20,6 +20,26 @@ class ExtractionResponse(BaseModel):
     error: str = ""
 
 
+class YouTubeTranscriptRequest(BaseModel):
+    url: str
+
+
+class TranscriptSegment(BaseModel):
+    start_seconds: float
+    end_seconds: float
+    text: str
+
+
+class YouTubeTranscriptResponse(BaseModel):
+    success: bool
+    title: str = ""
+    transcript_text: str = ""
+    combined_text: str = ""
+    transcript: list[TranscriptSegment] = Field(default_factory=list)
+    metadata: dict[str, str] = Field(default_factory=dict)
+    error: str = ""
+
+
 # Why this file exists:
 # Pydantic gives Go a predictable JSON contract instead of every extractor
 # inventing a different response shape.

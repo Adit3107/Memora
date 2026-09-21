@@ -24,7 +24,7 @@ func RegisterRoutes(router *gin.Engine, db *sql.DB, aiServiceURL string) {
 	contentHandler := handlers.NewContentHandler(services.NewContentService(contentRepo), contentTagService)
 	tagHandler := handlers.NewTagHandler(services.NewTagService(tagRepo, contentTagRepo), contentTagService)
 	contentTagHandler := handlers.NewContentTagHandler(contentTagService)
-	ingestionHandler := handlers.NewIngestionHandler(services.NewIngestionService(contentRepo, ingestionRepo, aiServiceURL))
+	ingestionHandler := handlers.NewIngestionHandler(services.NewIngestionService(contentRepo, spaceRepo, ingestionRepo, aiServiceURL))
 
 	api := router.Group("/api")
 
@@ -57,6 +57,7 @@ func RegisterRoutes(router *gin.Engine, db *sql.DB, aiServiceURL string) {
 	ingestionRoutes := api.Group("/ingestion")
 	ingestionRoutes.POST("/url", ingestionHandler.IngestURL)
 	ingestionRoutes.POST("/file", ingestionHandler.IngestFile)
+	ingestionRoutes.GET("/:id", ingestionHandler.GetByID)
 
 	tags := api.Group("/tags")
 	tags.POST("", tagHandler.Create)

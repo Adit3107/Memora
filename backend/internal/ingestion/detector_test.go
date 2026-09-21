@@ -28,19 +28,14 @@ func TestDetectURL(t *testing.T) {
 			want:   DetectedContentTypeYouTube,
 		},
 		{
-			name:   "instagram url",
-			rawURL: "https://instagram.com/reel/abc",
-			want:   DetectedContentTypeInstagram,
+			name:   "markdown youtube url",
+			rawURL: "[https://youtu.be/abc](https://youtu.be/abc)",
+			want:   DetectedContentTypeYouTube,
 		},
 		{
-			name:   "facebook url",
-			rawURL: "https://fb.watch/abc",
-			want:   DetectedContentTypeFacebook,
-		},
-		{
-			name:   "reddit url",
-			rawURL: "https://reddit.com/r/golang/comments/abc/title",
-			want:   DetectedContentTypeReddit,
+			name:   "angle wrapped article url",
+			rawURL: "<https://example.com/article>",
+			want:   DetectedContentTypeWebArticle,
 		},
 		{
 			name:   "web article url",
