@@ -1,0 +1,37 @@
+from app.models.extraction import ExtractionResponse
+from app.services.documents import extract_document
+from app.services.images import extract_image
+from fastapi import APIRouter, File, Form, UploadFile
+
+router = APIRouter(prefix="/extract")
+
+
+@router.post("/document", response_model=ExtractionResponse)
+async def document(
+    file: UploadFile = File(...),
+    content_type: str = Form(""),
+) -> ExtractionResponse:
+    data = await file.read()
+    return extract_document(
+        data=data,
+        filename=file.filename or "",
+        content_type=content_type or file.content_type or "",
+    )
+
+
+@router.post("/image", response_model=ExtractionResponse)
+async def image(
+    file: UploadFile = File(...),
+    content_type: str = Form(""),
+) -> ExtractionResponse:
+    data = await file.read()
+    return extract_image(
+        data=data,
+        filename=file.filename or "",
+        content_type=content_type or file.content_type or "",
+    )
+
+
+# Why this file exists:
+# Go sends trusted internal extraction requests here. The route layer only reads
+# uploaded bytes and delegates parsing/OCR to service functions.

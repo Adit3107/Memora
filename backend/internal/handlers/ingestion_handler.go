@@ -47,6 +47,37 @@ func (h *IngestionHandler) IngestURL(c *gin.Context) {
 	response.Success(c, http.StatusCreated, "Content ingested", result)
 }
 
+func (h *IngestionHandler) IngestFile(c *gin.Context) {
+	userID := c.PostForm("user_id")
+	spaceID := c.PostForm("space_id")
+
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "Invalid file upload", err.Error())
+		return
+	}
+	defer file.Close()
+
+	contentType := header.Header.Get("Content-Type")
+	result, err := h.service.IngestFile(c.Request.Context(), services.IngestFileInput{
+		UserID:      userID,
+		SpaceID:     spaceID,
+		FileName:    header.Filename,
+		ContentType: contentType,
+		Body:        file,
+	})
+	if err != nil {
+		if services.IsIngestionClientError(err) {
+			response.Error(c, http.StatusBadRequest, "Ingestion failed", err.Error())
+			return
+		}
+		handleServiceError(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusCreated, "Content ingested", result)
+}
+
 // Why this file exists:
 // Handlers translate HTTP JSON into service input and service output into API responses.
 // This keeps request parsing and status codes out of the ingestion business logic.

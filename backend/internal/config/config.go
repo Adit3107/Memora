@@ -7,9 +7,10 @@ import (
 )
 
 type Config struct {
-	Port        string
-	DatabaseURL string
-	Storage     StorageConfig
+	Port         string
+	DatabaseURL  string
+	AIServiceURL string
+	Storage      StorageConfig
 }
 
 type StorageConfig struct {
@@ -25,8 +26,9 @@ func Load() Config {
 	port := getEnv("PORT", "8080")
 
 	return Config{
-		Port:        port,
-		DatabaseURL: os.Getenv("DATABASE_URL"),
+		Port:         port,
+		DatabaseURL:  os.Getenv("DATABASE_URL"),
+		AIServiceURL: getEnv("AI_SERVICE_URL", "http://localhost:8001"),
 		Storage: StorageConfig{
 			AWSRegion: os.Getenv("AWS_REGION"),
 			S3Bucket:  os.Getenv("AWS_S3_BUCKET"),

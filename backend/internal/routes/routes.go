@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func RegisterRoutes(router *gin.Engine, db *sql.DB) {
+func RegisterRoutes(router *gin.Engine, db *sql.DB, aiServiceURL string) {
 	userRepo := repository.NewPostgresUserRepository(db)
 	spaceRepo := repository.NewPostgresSpaceRepository(db)
 	contentRepo := repository.NewPostgresContentRepository(db)
@@ -24,7 +24,7 @@ func RegisterRoutes(router *gin.Engine, db *sql.DB) {
 	contentHandler := handlers.NewContentHandler(services.NewContentService(contentRepo), contentTagService)
 	tagHandler := handlers.NewTagHandler(services.NewTagService(tagRepo, contentTagRepo), contentTagService)
 	contentTagHandler := handlers.NewContentTagHandler(contentTagService)
-	ingestionHandler := handlers.NewIngestionHandler(services.NewIngestionService(contentRepo, ingestionRepo))
+	ingestionHandler := handlers.NewIngestionHandler(services.NewIngestionService(contentRepo, ingestionRepo, aiServiceURL))
 
 	api := router.Group("/api")
 
@@ -56,6 +56,7 @@ func RegisterRoutes(router *gin.Engine, db *sql.DB) {
 
 	ingestionRoutes := api.Group("/ingestion")
 	ingestionRoutes.POST("/url", ingestionHandler.IngestURL)
+	ingestionRoutes.POST("/file", ingestionHandler.IngestFile)
 
 	tags := api.Group("/tags")
 	tags.POST("", tagHandler.Create)

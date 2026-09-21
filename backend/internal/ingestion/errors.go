@@ -8,6 +8,7 @@ var (
 	ErrEmptyContent          = errors.New("extracted content is empty")
 	ErrInvalidURL            = errors.New("invalid url")
 	ErrUnexpectedContentType = errors.New("unexpected content type")
+	ErrExtractionFailed      = errors.New("extraction failed")
 )
 
 // Why this file exists:
