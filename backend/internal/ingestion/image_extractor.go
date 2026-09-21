@@ -189,5 +189,6 @@ var _ OCRRunner = TesseractRunner{}
 
 // Why this file exists:
 // Images need OCR before they can become searchable text.
-// This extractor validates image data, records simple image metadata, and calls
-// Tesseract through a fixed command boundary instead of executing user input.
+// This file keeps OCR behind a small runner interface. In the target
+// architecture, Go should orchestrate image ingestion and call the internal
+// Python service for Tesseract OCR instead of making Python own persistence.

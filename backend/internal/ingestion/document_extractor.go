@@ -414,5 +414,7 @@ var _ Extractor = (*DocumentExtractor)(nil)
 
 // Why this file exists:
 // Uploaded documents are binary streams, but Memora needs searchable text.
-// This extractor handles the supported document formats and preserves practical
-// references like pages, slides, sheets, and row counts for later retrieval.
+// This Go extractor is a basic local path for simple formats and tests. The
+// target architecture can replace richer PDF/DOCX/PPTX extraction with a Go
+// client that calls the internal Python service while keeping this same
+// Extractor contract.

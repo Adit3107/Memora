@@ -9,7 +9,7 @@ import {
   supportedFileFormats,
 } from "@/data/save-content";
 import { spaces } from "@/data/content";
-import { ingestURL, type IngestURLResult } from "@/lib/api";
+import { ingestFile, ingestURL, type IngestResult } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { SaveInputType } from "@/types/save-content";
 
@@ -24,9 +24,10 @@ export function SaveContentForm() {
   const [spaceID, setSpaceID] = useState("");
   const [spaceSlug, setSpaceSlug] = useState(spaces[0]?.slug ?? "");
   const [selectedTags, setSelectedTags] = useState<string[]>(["RAG", "AI"]);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [result, setResult] = useState<IngestURLResult | null>(null);
+  const [result, setResult] = useState<IngestResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isFileInput = fileTypes.includes(inputType);
@@ -49,23 +50,35 @@ export function SaveContentForm() {
     setMessage("");
     setResult(null);
 
-    if (isFileInput) {
-      setError("File and image uploads need a multipart endpoint. URL ingestion is connected now.");
+    if (!userID.trim() || !spaceID.trim()) {
+      setError("Enter a user ID and space ID before saving.");
       return;
     }
 
-    if (!url.trim() || !userID.trim() || !spaceID.trim()) {
-      setError("Enter a URL, user ID, and space ID before saving.");
+    if (isFileInput && !selectedFile) {
+      setError("Choose a file before saving.");
+      return;
+    }
+
+    if (!isFileInput && !url.trim()) {
+      setError("Enter a URL before saving.");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const saved = await ingestURL({
-        user_id: userID.trim(),
-        space_id: spaceID.trim(),
-        url: url.trim(),
-      });
+      const saved =
+        isFileInput && selectedFile
+          ? await ingestFile({
+              user_id: userID.trim(),
+              space_id: spaceID.trim(),
+              file: selectedFile,
+            })
+          : await ingestURL({
+              user_id: userID.trim(),
+              space_id: spaceID.trim(),
+              url: url.trim(),
+            });
       setResult(saved);
       setMessage(`Saved ${saved.title} with ${saved.chunk_count} chunk${saved.chunk_count === 1 ? "" : "s"}.`);
     } catch (caught) {
@@ -120,11 +133,14 @@ export function SaveContentForm() {
                 <input
                   className="block w-full rounded-md border bg-background px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1 file:text-sm file:font-medium"
                   id="file-placeholder"
+                  onChange={(event) =>
+                    setSelectedFile(event.target.files?.[0] ?? null)
+                  }
                   type="file"
                 />
                 <p className="text-xs leading-5 text-muted-foreground">
-                  This does not upload anything. It only previews the future
-                  file-selection flow.
+                  Files are sent to Go. Documents and images use the internal
+                  Python extraction service when required.
                 </p>
               </div>
             ) : (
@@ -229,8 +245,8 @@ export function SaveContentForm() {
             </div>
             <p className="mt-4 text-sm leading-6 text-muted-foreground">
               URL ingestion now extracts public content, normalizes text, creates
-              chunks, and stores processing status. Embeddings and search remain
-              for later phases.
+              chunks, and stores processing status. Files go through Go first,
+              then Python only when specialized extraction is needed.
             </p>
           </aside>
         </div>
