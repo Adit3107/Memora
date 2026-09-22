@@ -140,6 +140,42 @@ content.
 go test ./...
 ```
 
+## Phase 6 Search API
+
+Search is exposed through:
+
+```http
+POST /api/search
+```
+
+Request:
+
+```json
+{
+  "user_id": "USER_ID",
+  "query": "Kafka consumer groups",
+  "mode": "hybrid",
+  "space_id": "SPACE_ID",
+  "content_type": "video",
+  "source_type": "youtube",
+  "tag_ids": [],
+  "limit": 10,
+  "offset": 0
+}
+```
+
+Supported modes:
+
+- `semantic`: embeds the query through Python and searches pgvector.
+- `keyword`: uses PostgreSQL full-text search over titles and chunk text.
+- `hybrid`: combines semantic and keyword rankings with reciprocal rank fusion.
+
+Authorization is enforced by filtering every search query with `content.user_id`.
+A user ID must be present in the request until a real auth layer exists.
+
+Search returns chunk-level results with content metadata, tags, page numbers, and
+YouTube timestamps where available.
+
 Manual checks:
 
 1. Start the AI service on port `8001`.
@@ -153,3 +189,6 @@ Manual checks:
 Phase 5 stores vectorized knowledge. Search ranking, hybrid search, RAG, chat,
 summaries, recommendation systems, queues, and additional social ingestion
 adapters belong to later phases.
+
+Phase 6 adds search and retrieval only. RAG, chat, LLM answers, summaries,
+recommendations, and LLM reranking remain out of scope.

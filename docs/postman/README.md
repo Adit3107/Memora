@@ -34,6 +34,7 @@ go run ./cmd/server
 6. Backend - Ingestion / Ingest YouTube URL
 7. Backend - Ingestion / Get Ingestion Result
 8. Backend - Ingestion / Ingest File
+9. Backend - Search
 
 `Create User`, `Create Space`, and ingestion requests save returned IDs into the
 environment automatically.
@@ -47,8 +48,10 @@ Set these environment variables manually before file upload requests:
 
 Use absolute paths if the Postman extension does not resolve relative paths.
 
-## Phase Boundary
+## Search
 
-The collection includes `Backend - Optional Search Route` because the route
-exists in the current codebase. Treat it as a Phase 6 preview. Phase 5 is about
-creating and storing vectorized chunks, not building search or RAG UX.
+`Backend - Search` calls `POST /api/search` with hybrid mode. Run it after at
+least one ingestion request has completed and stored embeddings.
+
+Search is Phase 6 retrieval only. RAG, chat, generated answers, and summaries are
+not part of this collection.

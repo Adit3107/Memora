@@ -62,6 +62,7 @@ func RegisterRoutes(router *gin.Engine, db *sql.DB, aiServiceURL string, embeddi
 	ingestionRoutes.GET("/:id", ingestionHandler.GetByID)
 
 	searchRoutes := api.Group("/search")
+	searchRoutes.POST("", searchHandler.Search)
 	searchRoutes.POST("/semantic", searchHandler.Semantic)
 
 	tags := api.Group("/tags")

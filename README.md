@@ -63,6 +63,19 @@ Phase 5 adds vectorized knowledge:
 Search and RAG are later phases. Phase 5 only guarantees that vectorized chunks
 exist and are ready to be retrieved later.
 
+Phase 6 adds retrieval:
+
+```text
+Search query
+   -> Go API
+   -> Python query embedding when semantic search is needed
+   -> PostgreSQL keyword search and/or pgvector search
+   -> hybrid ranking
+   -> frontend results with timestamps/pages
+```
+
+RAG and generated answers are still later phases.
+
 ## Services
 
 Run the backend:

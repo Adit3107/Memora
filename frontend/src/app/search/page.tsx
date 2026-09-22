@@ -7,7 +7,7 @@ export default function SearchPage() {
       <PageHeader
         eyebrow="Search"
         title="Ask for what you remember vaguely."
-        description="Search across mock saved videos, documents, articles, and images. This is frontend-only filtering, not semantic search."
+        description="Search across vectorized YouTube transcripts and document chunks using semantic, keyword, or hybrid retrieval."
       />
 
       <SearchBrowser />

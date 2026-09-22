@@ -25,20 +25,46 @@ export type SemanticSearchRequest = {
 	limit?: number;
 };
 
-export type SemanticSearchResult = {
+export type SearchMode = "semantic" | "keyword" | "hybrid";
+
+export type SearchRequest = {
+	user_id: string;
+	query: string;
+	mode?: SearchMode;
+	space_id?: string;
+	content_type?: "video" | "document" | "article" | "image";
+	source_type?: string;
+	tag_ids?: string[];
+	created_from?: string;
+	created_to?: string;
+	limit?: number;
+	offset?: number;
+};
+
+export type SearchResult = {
 	content_id: string;
 	chunk_id: string;
 	chunk_index: number;
 	title: string;
 	content_type: "video" | "document" | "article" | "image";
 	source_url?: string;
+	thumbnail_url?: string;
 	text: string;
 	score: number;
 	page_index?: number;
 	start_seconds?: number;
 	end_seconds?: number;
+	source_type: string;
 	embedding_model: string;
 	metadata: Record<string, string>;
+	tags: string[];
+};
+
+export type SearchResponse = {
+	mode: SearchMode;
+	query: string;
+	total: number;
+	results: SearchResult[];
 };
 
 type APIResponse<T> = {
@@ -92,7 +118,7 @@ export async function ingestFile(payload: {
 
 export async function semanticSearch(
 	payload: SemanticSearchRequest
-): Promise<SemanticSearchResult[]> {
+): Promise<SearchResult[]> {
 	const response = await fetch(`${API_BASE_URL}/search/semantic`, {
 		method: "POST",
 		headers: {
@@ -101,9 +127,28 @@ export async function semanticSearch(
 		body: JSON.stringify(payload),
 	});
 
-	const body = (await response.json()) as APIResponse<SemanticSearchResult[]>;
+	const body = (await response.json()) as APIResponse<SearchResult[]>;
 	if (!response.ok || !body.success || !body.data) {
 		throw new Error(body.error || body.message || "Semantic search failed");
+	}
+
+	return body.data;
+}
+
+export async function searchMemora(
+	payload: SearchRequest
+): Promise<SearchResponse> {
+	const response = await fetch(`${API_BASE_URL}/search`, {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify(payload),
+	});
+
+	const body = (await response.json()) as APIResponse<SearchResponse>;
+	if (!response.ok || !body.success || !body.data) {
+		throw new Error(body.error || body.message || "Search failed");
 	}
 
 	return body.data;

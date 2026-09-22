@@ -273,3 +273,30 @@ Do not add these to Phase 5:
 - AI-generated tags
 - summaries
 - production Kubernetes deployment
+
+## Phase 6 Search
+
+Phase 6 searches the chunks created by Phase 5:
+
+```text
+Search Query
+   |
+   v
+Next.js
+   |
+   v
+Go API
+   |
+   +-- Python Embedding Service
+   |
+   +-- PostgreSQL + pgvector
+         |
+         +-- Semantic Search
+         +-- Keyword Search
+         +-- Hybrid Ranking
+```
+
+Semantic search uses the same embedding model as ingestion so query vectors and
+stored chunk vectors live in the same vector space. Keyword search uses
+PostgreSQL full-text search. Hybrid search combines result ranks with reciprocal
+rank fusion so one score scale does not dominate the other.

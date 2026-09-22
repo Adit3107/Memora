@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "Memora Phase 5 Minimal",
-    "description": "Minimal local collection for testing AI embeddings and Go ingestion.",
+    "name": "Memora Phase 5-6 Minimal",
+    "description": "Minimal local collection for testing embeddings, ingestion, and search.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -51,6 +51,23 @@
           "raw": "{\n  \"texts\": [\n    \"I am learning Go backend development and vector databases.\",\n    \"Memora stores transcript and document chunks in pgvector.\"\n  ]\n}"
         },
         "url": "{{ai_base_url}}/embeddings"
+      }
+    },
+    {
+      "name": "Backend - Search",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"space_id\": \"{{space_id}}\",\n  \"query\": \"Kafka consumer groups\",\n  \"mode\": \"hybrid\",\n  \"limit\": 10,\n  \"offset\": 0\n}"
+        },
+        "url": "{{backend_base_url}}/search"
       }
     },
     {
