@@ -1,29 +1,68 @@
-# Memora Phase 4 Ingestion Architecture
+# Memora Ingestion and Embedding Architecture
 
-Memora uses Go as the primary backend and a Python service for specialized extraction work.
+Memora uses Go as the primary backend and a Python service for specialized
+extraction and AI work.
 
-The goal is not to move the backend to Python. The goal is to keep ownership clear:
+The goal is not to move the backend to Python. The goal is to keep ownership
+clear and make the system easy to explain.
 
-- Go receives frontend requests.
-- Go validates input and detects content type.
-- Go decides which extraction path to use.
-- Go owns PostgreSQL, S3, ingestion status, chunking, and API responses.
-- Python handles extraction tasks where Python libraries are a better fit.
-
-## Request Flow
+## System Diagram
 
 ```text
 Next.js
-  -> Go Backend
-  -> content type detection
-  -> local Go extractor OR Python extraction service
-  -> Go cleaner
-  -> Go chunker
-  -> PostgreSQL
-  -> Go API response
+   |
+   v
+Go API
+   |
+   +------ PostgreSQL + pgvector
+   |
+   +------ S3
+   |
+   +------ Python AI Service
+              |
+              +-- Embeddings
+              +-- OCR/processing support
+              +-- Future AI services
 ```
 
-The frontend should call only Go. Python is an internal service.
+The frontend calls only Go. Python is an internal service.
+
+```text
+Next.js -> Go -> Python
+```
+
+## Phase 5 Flow
+
+```text
+Content
+  -> Extract
+  -> Clean
+  -> Chunk
+  -> Go calls Python /embeddings
+  -> Python returns vectors
+  -> Go validates vectors
+  -> Go persists chunks + vectors
+```
+
+For YouTube:
+
+```text
+YouTube URL
+  -> transcript
+  -> timestamped chunks
+  -> embeddings
+  -> pgvector
+```
+
+For documents:
+
+```text
+Document
+  -> text extraction or OCR
+  -> page-aware chunks where page data exists
+  -> embeddings
+  -> pgvector
+```
 
 ## Go Responsibilities
 
@@ -34,28 +73,32 @@ Go remains the application backend. It owns:
 - URL parsing
 - content type detection
 - ingestion orchestration
-- deciding whether Python is needed
-- database writes
+- users, spaces, content, and tags
+- PostgreSQL migrations and writes
 - S3 coordination
 - ingestion status transitions
-- cleaning and normalization when generic
+- generic cleaning and normalization
 - chunking
+- embedding client calls to Python
+- vector shape validation
+- chunk and vector persistence
 - frontend response shape
 
-Go should not call Python just because Python exists. If Go can handle the source cleanly, keep it in Go.
+Go should not call Python just because Python exists. If Go can handle a source
+cleanly, keep it in Go.
 
 ## Python Responsibilities
 
-Python is a specialized extraction service. It should handle:
+Python is a specialized internal AI service. It handles:
 
-- PDF extraction
+- richer PDF extraction
 - DOCX extraction
 - PPTX extraction
-- OCR through Tesseract
+- image OCR through Tesseract
 - YouTube transcript retrieval through youtube-transcript-api
-- future AI utilities in later phases
+- embedding generation through SentenceTransformers
 
-Python should not own:
+Python does not own:
 
 - user-facing API routes
 - authentication
@@ -64,146 +107,169 @@ Python should not own:
 - ingestion status
 - chunk persistence
 
-## Current Phase 4 Split
+## Internal API Contracts
 
-Prefer Go for:
+Extraction endpoints return structured text, pages, transcript segments, and
+metadata.
 
-- content type detection
-- web/article extraction
-- YouTube URL validation and orchestration
-- transcript normalization
-- TXT extraction
-- CSV extraction
-- basic XLSX extraction when simple sheet/cell text is enough
-- cleaning
+Embedding endpoint:
+
+```http
+POST /embeddings
+```
+
+Request:
+
+```json
+{
+  "texts": ["first chunk", "second chunk"]
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "model": "sentence-transformers/all-MiniLM-L6-v2",
+  "dimension": 384,
+  "embeddings": [[0.12, -0.03]],
+  "error": ""
+}
+```
+
+The full embedding contract lives in `ai-service/EMBEDDING_CONTRACT.md`.
+
+## Embedding Model
+
+Default model:
+
+```text
+sentence-transformers/all-MiniLM-L6-v2
+```
+
+Dimension:
+
+```text
+384
+```
+
+This model is local and free to run, which fits the project goal of being
+student-friendly. The tradeoff is that the first run downloads model files and
+local CPU inference is slower than paid hosted APIs.
+
+Changing the embedding dimension later requires a database migration and
+re-embedding existing chunks.
+
+The Go backend reads `EMBEDDING_DIMENSION` from the environment and uses it to
+validate Python responses before writing chunks. This makes model swaps explicit:
+change the Python model, change the expected dimension, migrate pgvector, then
+re-embed existing content.
+
+## pgvector Schema
+
+Phase 5 keeps the existing content/chunk model and adds only what embeddings
+need:
+
+```text
+content
+   |
+   +-- content_chunks
+          |
+          +-- text
+          +-- chunk_index
+          +-- page_index
+          +-- start_seconds
+          +-- end_seconds
+          +-- metadata
+          +-- embedding vector(384)
+          +-- embedding_model
+          +-- embedded_at
+```
+
+The vector index uses cosine distance through pgvector.
+
+## Concurrency
+
+The ingestion pipeline remains sequential through extraction, cleaning, and
+chunking because each stage depends on the previous stage.
+
+Embedding generation can be batched and parallelized because each batch of chunk
+texts is independent. Go uses a bounded worker pool controlled by
+`EMBEDDING_MAX_CONCURRENCY`.
+
+Database writes remain sequential and transactional. This avoids races and
+prevents partially embedded chunks from being marked completed.
+
+Context cancellation is passed through Go HTTP requests to Python. If the client
+cancels or a timeout occurs, workers stop and ingestion is marked failed.
+
+## Failure Handling
+
+Ingestion states:
+
+```text
+pending -> processing -> completed
+                      -> failed
+```
+
+V1 behavior is simple:
+
+- extraction failure marks ingestion failed
+- empty content marks ingestion failed
+- embedding service failure marks ingestion failed
+- invalid embedding dimensions mark ingestion failed
+- database failure marks ingestion failed when possible
+
+Go does not save a completed ingestion unless every chunk has a valid vector and
+model name.
+
+## Tests
+
+Backend tests cover:
+
 - chunking
-- persistence
+- extraction helpers
+- Python embedding client success and invalid responses
+- chunk-to-embedding integration
+- bounded embedding concurrency
+- validation that completed chunks require vectors
 
-Prefer Python for:
+AI service tests cover:
 
-- image OCR
-- richer PDF extraction
-- richer DOCX extraction
-- richer PPTX extraction
-- YouTube transcript retrieval
+- YouTube transcript behavior
+- embedding fallback behavior
+- empty text handling
 
-TXT and CSV can stay in Go because the standard library handles them simply.
+Run:
 
-XLSX stays in Go for the current basic sheet-text extraction. Python may be used later if richer spreadsheet handling becomes important.
-
-## Service Boundary
-
-Python should return normalized extraction data to Go. The response should be stable across extractor types.
-
-Conceptual response:
-
-```json
-{
-  "success": true,
-  "content_type": "pdf",
-  "title": "Example",
-  "text": "Extracted text",
-  "metadata": {},
-  "pages": []
-}
+```powershell
+cd backend
+go test ./...
 ```
 
-For images:
-
-```json
-{
-  "success": true,
-  "content_type": "image",
-  "text": "OCR text",
-  "metadata": {
-    "image_format": "png"
-  }
-}
+```powershell
+cd ai-service
+..\ai-service\.venv\Scripts\python.exe -m unittest discover -s tests
 ```
-
-Python errors should be structured and safe:
-
-```json
-{
-  "success": false,
-  "error": "could not extract text from PDF"
-}
-```
-
-Go should convert Python errors into Memora application errors. Do not expose Python stack traces to the frontend.
-
-## When Go Should Call Python
-
-Go should call Python when:
-
-- the content type is an image that needs OCR
-- a document format needs richer parsing than the current Go extractor provides
-- the source is a YouTube URL and transcript retrieval uses youtube-transcript-api
-- a future Phase 5+ AI operation requires Python libraries
-
-Go should not call Python when:
-
-- the source is a normal web article and Go can parse useful HTML
-- the source is TXT, CSV, or basic XLSX
-- the work is persistence, status tracking, or chunking
-
-## Responsibility Table
-
-| Responsibility | Go | Python |
-|---|---|---|
-| REST API | yes | no |
-| Main backend | yes | no |
-| Users, spaces, content, tags | yes | no |
-| Authentication and authorization integration | yes | no |
-| PostgreSQL and migrations | yes | no |
-| S3 ownership | yes | no |
-| Ingestion orchestration | yes | no |
-| URL detection | yes | no |
-| YouTube URL detection | yes | no |
-| YouTube transcript normalization | yes | retrieval only |
-| YouTube transcript retrieval | orchestration only | yes, through youtube-transcript-api |
-| Web/article ingestion | yes | optional only with a specific technical reason |
-| PDF extraction | no, except fallback/basic tests | yes |
-| DOCX extraction | no, except fallback/basic tests | yes |
-| PPTX extraction | no, except fallback/basic tests | yes |
-| TXT extraction | yes | no |
-| CSV extraction | yes | optional only if requirements become data-heavy |
-| XLSX extraction | yes for basic sheet text | optional for richer spreadsheet processing |
-| OCR | no | yes |
-| Cleaning | yes | extraction-specific cleanup only |
-| Chunking | yes | no |
-| Embeddings | no, Phase 5 | yes, Phase 5 |
-| Gemini/LLM/RAG | no, except API orchestration later | yes, later phases |
-| Search API | yes | no |
-
-## Node Analogy
-
-If this were a Node app, Go is like the Express or NestJS backend:
-
-```text
-controller -> service -> repository -> database
-```
-
-Python is like a private internal microservice:
-
-```text
-documentExtractorClient.extractPDF(file)
-ocrClient.extractImageText(file)
-```
-
-The Node/Go backend still owns the user request and database transaction. The Python service only returns extracted content.
 
 ## Phase Boundary
 
-Phase 4 ends at structured, cleaned, chunked content.
+Phase 5 ends when extracted content can be chunked, embedded, and stored in
+PostgreSQL + pgvector.
 
-Do not add:
+Do not add these to Phase 5:
 
-- embeddings
-- Gemini
-- LangChain
-- semantic search
+- semantic search UI
+- search ranking
+- hybrid search
 - RAG
-- queues
-- background workers
-- direct Python database access
+- chat
+- Redis
+- Kafka
+- background distributed workers
+- additional social platform ingestion
+- recommendations
+- AI-generated tags
+- summaries
+- production Kubernetes deployment

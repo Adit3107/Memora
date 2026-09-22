@@ -10,6 +10,7 @@ var (
 	ErrUnexpectedContentType = errors.New("unexpected content type")
 	ErrExtractionFailed      = errors.New("extraction failed")
 	ErrTranscriptUnavailable = errors.New("youtube transcript is unavailable")
+	ErrEmbeddingFailed       = errors.New("embedding generation failed")
 )
 
 // Why this file exists:

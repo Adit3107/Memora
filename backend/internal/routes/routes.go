@@ -10,13 +10,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func RegisterRoutes(router *gin.Engine, db *sql.DB, aiServiceURL string) {
+func RegisterRoutes(router *gin.Engine, db *sql.DB, aiServiceURL string, embeddingDimension int, embeddingMaxConcurrency int) {
 	userRepo := repository.NewPostgresUserRepository(db)
 	spaceRepo := repository.NewPostgresSpaceRepository(db)
 	contentRepo := repository.NewPostgresContentRepository(db)
 	tagRepo := repository.NewPostgresTagRepository(db)
 	contentTagRepo := repository.NewPostgresContentTagRepository(db)
-	ingestionRepo := repository.NewPostgresIngestionRepository(db)
+	ingestionRepo := repository.NewPostgresIngestionRepository(db, embeddingDimension)
+	searchRepo := repository.NewPostgresSearchRepository(db)
 
 	userHandler := handlers.NewUserHandler(services.NewUserService(userRepo))
 	spaceHandler := handlers.NewSpaceHandler(services.NewSpaceService(spaceRepo))
@@ -24,7 +25,8 @@ func RegisterRoutes(router *gin.Engine, db *sql.DB, aiServiceURL string) {
 	contentHandler := handlers.NewContentHandler(services.NewContentService(contentRepo), contentTagService)
 	tagHandler := handlers.NewTagHandler(services.NewTagService(tagRepo, contentTagRepo), contentTagService)
 	contentTagHandler := handlers.NewContentTagHandler(contentTagService)
-	ingestionHandler := handlers.NewIngestionHandler(services.NewIngestionService(contentRepo, spaceRepo, ingestionRepo, aiServiceURL))
+	ingestionHandler := handlers.NewIngestionHandler(services.NewIngestionService(contentRepo, spaceRepo, ingestionRepo, aiServiceURL, embeddingDimension, embeddingMaxConcurrency))
+	searchHandler := handlers.NewSearchHandler(services.NewSearchService(searchRepo, aiServiceURL, embeddingDimension))
 
 	api := router.Group("/api")
 
@@ -58,6 +60,9 @@ func RegisterRoutes(router *gin.Engine, db *sql.DB, aiServiceURL string) {
 	ingestionRoutes.POST("/url", ingestionHandler.IngestURL)
 	ingestionRoutes.POST("/file", ingestionHandler.IngestFile)
 	ingestionRoutes.GET("/:id", ingestionHandler.GetByID)
+
+	searchRoutes := api.Group("/search")
+	searchRoutes.POST("/semantic", searchHandler.Semantic)
 
 	tags := api.Group("/tags")
 	tags.POST("", tagHandler.Create)

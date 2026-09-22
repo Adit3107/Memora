@@ -18,6 +18,29 @@ export type IngestResult = {
 
 export type IngestURLResult = IngestResult;
 
+export type SemanticSearchRequest = {
+	user_id: string;
+	space_id?: string;
+	query: string;
+	limit?: number;
+};
+
+export type SemanticSearchResult = {
+	content_id: string;
+	chunk_id: string;
+	chunk_index: number;
+	title: string;
+	content_type: "video" | "document" | "article" | "image";
+	source_url?: string;
+	text: string;
+	score: number;
+	page_index?: number;
+	start_seconds?: number;
+	end_seconds?: number;
+	embedding_model: string;
+	metadata: Record<string, string>;
+};
+
 type APIResponse<T> = {
   success: boolean;
   message: string;
@@ -62,6 +85,25 @@ export async function ingestFile(payload: {
 	const body = (await response.json()) as APIResponse<IngestResult>;
 	if (!response.ok || !body.success || !body.data) {
 		throw new Error(body.error || body.message || "Ingestion failed");
+	}
+
+	return body.data;
+}
+
+export async function semanticSearch(
+	payload: SemanticSearchRequest
+): Promise<SemanticSearchResult[]> {
+	const response = await fetch(`${API_BASE_URL}/search/semantic`, {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify(payload),
+	});
+
+	const body = (await response.json()) as APIResponse<SemanticSearchResult[]>;
+	if (!response.ok || !body.success || !body.data) {
+		throw new Error(body.error || body.message || "Semantic search failed");
 	}
 
 	return body.data;

@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"strings"
+	"sync"
 	"time"
 
 	"memora-backend/internal/ingestion"
@@ -14,12 +15,15 @@ import (
 )
 
 type IngestionService struct {
-	contentRepo    *repository.ContentRepository
-	spaceRepo      *repository.SpaceRepository
-	ingestionRepo  *repository.IngestionRepository
-	extractors     map[ingestion.DetectedContentType]ingestion.Extractor
-	fileExtractors map[ingestion.DetectedContentType]ingestion.Extractor
-	chunkConfig    ingestion.ChunkConfig
+	contentRepo             *repository.ContentRepository
+	spaceRepo               *repository.SpaceRepository
+	ingestionRepo           *repository.IngestionRepository
+	extractors              map[ingestion.DetectedContentType]ingestion.Extractor
+	fileExtractors          map[ingestion.DetectedContentType]ingestion.Extractor
+	embeddingClient         *ingestion.PythonEmbeddingClient
+	embeddingDimension      int
+	embeddingMaxConcurrency int
+	chunkConfig             ingestion.ChunkConfig
 }
 
 type IngestURLInput struct {
@@ -49,13 +53,23 @@ type IngestURLResult = IngestResult
 
 type IngestionDetail = repository.StoredIngestionResult
 
-func NewIngestionService(contentRepo *repository.ContentRepository, spaceRepo *repository.SpaceRepository, ingestionRepo *repository.IngestionRepository, aiServiceURL string) *IngestionService {
+func NewIngestionService(contentRepo *repository.ContentRepository, spaceRepo *repository.SpaceRepository, ingestionRepo *repository.IngestionRepository, aiServiceURL string, embeddingDimension int, embeddingMaxConcurrency int) *IngestionService {
 	pythonClient := ingestion.NewPythonExtractionClient(aiServiceURL, nil)
+	embeddingClient := ingestion.NewPythonEmbeddingClient(aiServiceURL, nil, embeddingDimension)
+	if embeddingDimension <= 0 {
+		embeddingDimension = ingestion.DefaultEmbeddingDimension
+	}
+	if embeddingMaxConcurrency <= 0 {
+		embeddingMaxConcurrency = 1
+	}
 
 	return &IngestionService{
-		contentRepo:   contentRepo,
-		spaceRepo:     spaceRepo,
-		ingestionRepo: ingestionRepo,
+		contentRepo:             contentRepo,
+		spaceRepo:               spaceRepo,
+		ingestionRepo:           ingestionRepo,
+		embeddingClient:         embeddingClient,
+		embeddingDimension:      embeddingDimension,
+		embeddingMaxConcurrency: embeddingMaxConcurrency,
 		extractors: map[ingestion.DetectedContentType]ingestion.Extractor{
 			ingestion.DetectedContentTypeYouTube:    ingestion.NewYouTubeExtractor(pythonClient),
 			ingestion.DetectedContentTypeWebArticle: ingestion.NewWebArticleExtractor(nil),
@@ -181,7 +195,8 @@ func IsIngestionClientError(err error) bool {
 		errors.Is(err, ingestion.ErrEmptyContent) ||
 		errors.Is(err, ingestion.ErrInaccessibleSource) ||
 		errors.Is(err, ingestion.ErrExtractionFailed) ||
-		errors.Is(err, ingestion.ErrTranscriptUnavailable)
+		errors.Is(err, ingestion.ErrTranscriptUnavailable) ||
+		errors.Is(err, ingestion.ErrEmbeddingFailed)
 }
 
 type runIngestionInput struct {
@@ -251,6 +266,11 @@ func (s *IngestionService) runIngestion(ctx context.Context, input runIngestionI
 		return IngestResult{}, err
 	}
 
+	if err := s.embedChunks(ctx, chunks); err != nil {
+		markFailed("embedding", err)
+		return IngestResult{}, err
+	}
+
 	if err := s.ingestionRepo.SaveCompleted(ctx, ingestionID, content.ID, cleaned, chunks); err != nil {
 		markFailed("persistence", err)
 		return IngestResult{}, err
@@ -274,6 +294,119 @@ func (s *IngestionService) validateSpace(userID string, spaceID string) error {
 	}
 	if space.UserID != userID {
 		return repository.ErrNotFound
+	}
+
+	return nil
+}
+
+func (s *IngestionService) embedChunks(ctx context.Context, chunks []ingestion.ContentChunk) error {
+	if s.embeddingClient == nil {
+		return ingestion.ErrEmbeddingFailed
+	}
+
+	batches := chunkEmbeddingBatches(chunks, ingestion.MaxEmbeddingBatchSize)
+	if len(batches) == 0 {
+		return ingestion.ErrEmptyContent
+	}
+	if s.embeddingMaxConcurrency <= 1 || len(batches) == 1 {
+		return s.embedChunkBatchesSequential(ctx, chunks, batches)
+	}
+
+	return s.embedChunkBatchesConcurrent(ctx, chunks, batches)
+}
+
+type embeddingBatchRange struct {
+	start int
+	end   int
+}
+
+func chunkEmbeddingBatches(chunks []ingestion.ContentChunk, batchSize int) []embeddingBatchRange {
+	if batchSize <= 0 {
+		batchSize = ingestion.MaxEmbeddingBatchSize
+	}
+
+	batches := make([]embeddingBatchRange, 0, (len(chunks)+batchSize-1)/batchSize)
+	for start := 0; start < len(chunks); start += batchSize {
+		end := start + batchSize
+		if end > len(chunks) {
+			end = len(chunks)
+		}
+		batches = append(batches, embeddingBatchRange{start: start, end: end})
+	}
+	return batches
+}
+
+func (s *IngestionService) embedChunkBatchesSequential(ctx context.Context, chunks []ingestion.ContentChunk, batches []embeddingBatchRange) error {
+	for _, batchRange := range batches {
+		if err := s.embedChunkBatch(ctx, chunks, batchRange); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *IngestionService) embedChunkBatchesConcurrent(ctx context.Context, chunks []ingestion.ContentChunk, batches []embeddingBatchRange) error {
+	workerCount := s.embeddingMaxConcurrency
+	if workerCount > len(batches) {
+		workerCount = len(batches)
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	jobs := make(chan embeddingBatchRange)
+	errs := make(chan error, 1)
+	var wg sync.WaitGroup
+
+	for worker := 0; worker < workerCount; worker++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for batchRange := range jobs {
+				if err := s.embedChunkBatch(ctx, chunks, batchRange); err != nil {
+					select {
+					case errs <- err:
+						cancel()
+					default:
+					}
+					return
+				}
+			}
+		}()
+	}
+
+dispatch:
+	for _, batchRange := range batches {
+		select {
+		case <-ctx.Done():
+			break dispatch
+		case jobs <- batchRange:
+		}
+	}
+	close(jobs)
+	wg.Wait()
+
+	select {
+	case err := <-errs:
+		return err
+	default:
+		return ctx.Err()
+	}
+}
+
+func (s *IngestionService) embedChunkBatch(ctx context.Context, chunks []ingestion.ContentChunk, batchRange embeddingBatchRange) error {
+	texts := make([]string, 0, batchRange.end-batchRange.start)
+	for index := batchRange.start; index < batchRange.end; index++ {
+		texts = append(texts, chunks[index].Text)
+	}
+
+	batch, err := s.embeddingClient.Generate(ctx, texts)
+	if err != nil {
+		return err
+	}
+	for index, embedding := range batch.Embeddings {
+		chunks[batchRange.start+index].Embedding = embedding
+		chunks[batchRange.start+index].EmbeddingModel = batch.Model
 	}
 
 	return nil
