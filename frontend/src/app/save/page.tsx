@@ -7,7 +7,7 @@ export default function SavePage() {
       <PageHeader
         eyebrow="Save content"
         title="Save anything into Memora."
-        description="Choose a future ingestion type, assign a Space, and attach tags. This is a frontend-only workflow with no upload, extraction, embedding, or backend request."
+        description="Add a YouTube URL or upload a document through the Go backend ingestion pipeline."
       />
 
       <SaveContentForm />

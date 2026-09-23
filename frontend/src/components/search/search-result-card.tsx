@@ -11,7 +11,7 @@ type SearchResultCardProps = {
 
 export function SearchResultCard({ item }: SearchResultCardProps) {
   const Icon = iconForType[item.content_type];
-  const href = item.source_url || `/library/${item.content_id}`;
+  const href = `/app/library/${item.content_id}?chunk=${item.chunk_id}`;
   const sourceLabel = sourceLabelForResult(item);
 
   return (
@@ -20,9 +20,18 @@ export function SearchResultCard({ item }: SearchResultCardProps) {
       href={href}
     >
       <article className="grid gap-4 sm:grid-cols-[auto_1fr_auto]">
-        <div className="flex size-10 items-center justify-center rounded-md border bg-background">
-          <Icon className="size-5 text-muted-foreground" aria-hidden="true" />
-        </div>
+        {item.thumbnail_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            alt=""
+            className="h-16 w-24 rounded-md border object-cover"
+            src={item.thumbnail_url}
+          />
+        ) : (
+          <div className="flex size-10 items-center justify-center rounded-md border bg-background">
+            <Icon className="size-5 text-muted-foreground" aria-hidden="true" />
+          </div>
+        )}
         <div className="min-w-0 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-md bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground">
@@ -37,6 +46,10 @@ export function SearchResultCard({ item }: SearchResultCardProps) {
             <h2 className="text-base font-semibold leading-6">{item.title}</h2>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
               {item.text}
+            </p>
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">
+              Returned from {sourceReference(item)} because this stored chunk matched
+              the search query.
             </p>
           </div>
           <TagList tags={item.tags} />

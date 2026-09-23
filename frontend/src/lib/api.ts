@@ -1,6 +1,50 @@
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080/api";
 
+export const MEMORA_DEMO_USER_ID =
+	process.env.NEXT_PUBLIC_MEMORA_USER_ID ??
+	"67a79aff-376d-48a7-af69-f087d46d313e";
+
+export const MEMORA_DEMO_SPACE_ID =
+	process.env.NEXT_PUBLIC_MEMORA_SPACE_ID ??
+	"2e96706f-8134-448b-918d-979aeb0500bc";
+
+export type ContentType = "video" | "document" | "article" | "image";
+
+export type BackendContent = {
+	id: string;
+	user_id: string;
+	space_id: string;
+	title: string;
+	description: string;
+	type: ContentType;
+	source_url?: string;
+	thumbnail_url?: string;
+	created_at: string;
+	updated_at: string;
+};
+
+export type BackendSpace = {
+	id: string;
+	user_id: string;
+	name: string;
+	description: string;
+	created_at: string;
+	updated_at: string;
+};
+
+export type BackendTag = {
+	id: string;
+	user_id: string;
+	name: string;
+	created_at: string;
+};
+
+export type ContentWithTags = {
+	content: BackendContent;
+	tags: BackendTag[];
+};
+
 export type IngestURLRequest = {
   user_id: string;
   space_id: string;
@@ -12,7 +56,7 @@ export type IngestResult = {
 	ingestion_id: string;
 	status: "pending" | "processing" | "completed" | "failed";
 	title: string;
-	content_type: "video" | "document" | "article" | "image";
+	content_type: ContentType;
 	chunk_count: number;
 };
 
@@ -32,7 +76,7 @@ export type SearchRequest = {
 	query: string;
 	mode?: SearchMode;
 	space_id?: string;
-	content_type?: "video" | "document" | "article" | "image";
+	content_type?: ContentType;
 	source_type?: string;
 	tag_ids?: string[];
 	created_from?: string;
@@ -46,7 +90,7 @@ export type SearchResult = {
 	chunk_id: string;
 	chunk_index: number;
 	title: string;
-	content_type: "video" | "document" | "article" | "image";
+	content_type: ContentType;
 	source_url?: string;
 	thumbnail_url?: string;
 	text: string;
@@ -74,10 +118,88 @@ type APIResponse<T> = {
   error?: string;
 };
 
+async function apiJSON<T>(path: string, init?: RequestInit): Promise<T> {
+	const headers: HeadersInit =
+		init?.body instanceof FormData
+			? init?.headers ?? {}
+			: {
+					"Content-Type": "application/json",
+					...(init?.headers as Record<string, string> | undefined),
+				};
+
+	const response = await fetch(`${API_BASE_URL}${path}`, {
+		...init,
+		headers,
+	});
+
+	const body = (await response.json()) as APIResponse<T>;
+	if (!response.ok || !body.success || body.data === undefined) {
+		throw new Error(body.error || body.message || "Memora request failed");
+	}
+
+	return body.data;
+}
+
+export async function listContent(): Promise<BackendContent[]> {
+	return apiJSON<BackendContent[]>("/content", {
+		cache: "no-store",
+	});
+}
+
+export async function getContent(id: string): Promise<BackendContent> {
+	return apiJSON<BackendContent>(`/content/${id}`, {
+		cache: "no-store",
+	});
+}
+
+export async function listSpaces(): Promise<BackendSpace[]> {
+	return apiJSON<BackendSpace[]>("/spaces", {
+		cache: "no-store",
+	});
+}
+
+export async function listTags(): Promise<BackendTag[]> {
+	return apiJSON<BackendTag[]>("/tags", {
+		cache: "no-store",
+	});
+}
+
+export async function createTag(payload: {
+	user_id: string;
+	name: string;
+}): Promise<BackendTag> {
+	return apiJSON<BackendTag>("/tags", {
+		method: "POST",
+		body: JSON.stringify(payload),
+	});
+}
+
+export async function listContentTags(contentID: string): Promise<BackendTag[]> {
+	return apiJSON<BackendTag[]>(`/content/${contentID}/tags`, {
+		cache: "no-store",
+	});
+}
+
+export async function setContentTags(
+	contentID: string,
+	tagIDs: string[]
+): Promise<ContentWithTags> {
+	return apiJSON<ContentWithTags>(`/content/${contentID}/tags`, {
+		method: "PUT",
+		body: JSON.stringify({ tag_ids: tagIDs }),
+	});
+}
+
+export async function getIngestionResult(id: string): Promise<IngestResult> {
+	return apiJSON<IngestResult>(`/ingestion/${id}`, {
+		cache: "no-store",
+	});
+}
+
 export async function ingestURL(
 	payload: IngestURLRequest
 ): Promise<IngestResult> {
-  const response = await fetch(`${API_BASE_URL}/ingestion/url`, {
+	const response = await fetch(`${API_BASE_URL}/ingestion/url`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -116,6 +238,53 @@ export async function ingestFile(payload: {
 	return body.data;
 }
 
+export async function ingestFileWithProgress(
+	payload: {
+		user_id: string;
+		space_id: string;
+		file: File;
+	},
+	onProgress: (progress: number) => void
+): Promise<IngestResult> {
+	const formData = new FormData();
+	formData.append("user_id", payload.user_id);
+	formData.append("space_id", payload.space_id);
+	formData.append("file", payload.file);
+
+	return new Promise((resolve, reject) => {
+		const request = new XMLHttpRequest();
+		request.open("POST", `${API_BASE_URL}/ingestion/file`);
+
+		request.upload.onprogress = (event) => {
+			if (event.lengthComputable) {
+				onProgress(Math.round((event.loaded / event.total) * 100));
+			}
+		};
+
+		request.onload = () => {
+			try {
+				const body = JSON.parse(request.responseText) as APIResponse<IngestResult>;
+				if (
+					request.status < 200 ||
+					request.status >= 300 ||
+					!body.success ||
+					!body.data
+				) {
+					reject(new Error(body.error || body.message || "Ingestion failed"));
+					return;
+				}
+				onProgress(100);
+				resolve(body.data);
+			} catch {
+				reject(new Error("Ingestion failed"));
+			}
+		};
+
+		request.onerror = () => reject(new Error("Ingestion failed"));
+		request.send(formData);
+	});
+}
+
 export async function semanticSearch(
 	payload: SemanticSearchRequest
 ): Promise<SearchResult[]> {
@@ -138,20 +307,10 @@ export async function semanticSearch(
 export async function searchMemora(
 	payload: SearchRequest
 ): Promise<SearchResponse> {
-	const response = await fetch(`${API_BASE_URL}/search`, {
+	return apiJSON<SearchResponse>("/search", {
 		method: "POST",
-		headers: {
-			"Content-Type": "application/json",
-		},
 		body: JSON.stringify(payload),
 	});
-
-	const body = (await response.json()) as APIResponse<SearchResponse>;
-	if (!response.ok || !body.success || !body.data) {
-		throw new Error(body.error || body.message || "Search failed");
-	}
-
-	return body.data;
 }
 
 // Why this file exists:

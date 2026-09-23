@@ -41,19 +41,19 @@ export const dashboardOverview: DashboardOverviewItem[] = [
 export const quickActions: QuickAction[] = [
   {
     title: "Save content",
-    description: "Open the frontend save workflow.",
+    description: "Ingest a YouTube URL through Go.",
     icon: Link,
     href: "/save",
   },
   {
     title: "Upload file",
-    description: "Open the upload placeholder flow.",
+    description: "Send a document to the backend pipeline.",
     icon: Upload,
     href: "/save",
   },
   {
     title: "Search memory",
-    description: "Open the prepared search workspace.",
+    description: "Run semantic, keyword, or hybrid retrieval.",
     icon: Search,
     href: "/search",
   },

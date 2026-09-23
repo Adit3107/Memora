@@ -7,7 +7,7 @@ export default function LibraryPage() {
       <PageHeader
         eyebrow="Library"
         title="Everything you saved, ready to browse."
-        description="Filter mock saved content by type and open detail views. No file processing, search, or backend data is implemented in Phase 1."
+        description="Browse backend content records, filter by type, and open detail views for ingestion metadata."
       />
 
       <LibraryBrowser />
