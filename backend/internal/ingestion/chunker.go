@@ -8,13 +8,15 @@ type ChunkConfig struct {
 }
 
 type ContentChunk struct {
-	Index        int               `json:"index"`
-	Text         string            `json:"text"`
-	SourceType   SourceType        `json:"source_type"`
-	PageIndex    *int              `json:"page_index,omitempty"`
-	StartSeconds *float64          `json:"start_seconds,omitempty"`
-	EndSeconds   *float64          `json:"end_seconds,omitempty"`
-	Metadata     map[string]string `json:"metadata,omitempty"`
+	Index          int               `json:"index"`
+	Text           string            `json:"text"`
+	SourceType     SourceType        `json:"source_type"`
+	PageIndex      *int              `json:"page_index,omitempty"`
+	StartSeconds   *float64          `json:"start_seconds,omitempty"`
+	EndSeconds     *float64          `json:"end_seconds,omitempty"`
+	Metadata       map[string]string `json:"metadata,omitempty"`
+	Embedding      []float64         `json:"-"`
+	EmbeddingModel string            `json:"embedding_model,omitempty"`
 }
 
 func DefaultChunkConfig() ChunkConfig {

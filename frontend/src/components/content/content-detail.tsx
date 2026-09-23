@@ -34,7 +34,7 @@ export function ContentDetail({ item }: ContentDetailProps) {
         </div>
         <Link
           className={cn(buttonVariants({ variant: "outline" }), "w-fit")}
-          href="/library"
+          href="/app/library"
         >
           Back to library
         </Link>
@@ -45,7 +45,7 @@ export function ContentDetail({ item }: ContentDetailProps) {
           <p className="text-sm text-muted-foreground">Space</p>
           <Link
             className="mt-2 block text-base font-semibold hover:underline"
-            href={`/spaces/${item.spaceSlug}`}
+            href={`/app/spaces/${item.spaceSlug}`}
           >
             {item.spaceName}
           </Link>
@@ -56,7 +56,16 @@ export function ContentDetail({ item }: ContentDetailProps) {
         </div>
         <div className="rounded-md border bg-card p-4 shadow-sm">
           <p className="text-sm text-muted-foreground">Source</p>
-          <p className="mt-2 text-base font-semibold">{item.source}</p>
+          {item.sourceUrl ? (
+            <Link
+              className="mt-2 block break-all text-base font-semibold hover:underline"
+              href={item.sourceUrl}
+            >
+              {item.source}
+            </Link>
+          ) : (
+            <p className="mt-2 text-base font-semibold">{item.source}</p>
+          )}
         </div>
       </section>
 
@@ -70,9 +79,18 @@ export function ContentDetail({ item }: ContentDetailProps) {
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <section className="rounded-md border bg-card p-5 shadow-sm">
           <div className="flex min-h-64 flex-col items-center justify-center rounded-md border border-dashed bg-background p-6 text-center">
-            <div className="flex size-12 items-center justify-center rounded-md border bg-card">
-              <Icon className="size-6 text-muted-foreground" aria-hidden="true" />
-            </div>
+            {item.thumbnailUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                alt=""
+                className="mb-4 aspect-video w-full max-w-md rounded-md border object-cover"
+                src={item.thumbnailUrl}
+              />
+            ) : (
+              <div className="flex size-12 items-center justify-center rounded-md border bg-card">
+                <Icon className="size-6 text-muted-foreground" aria-hidden="true" />
+              </div>
+            )}
             <p className="mt-4 text-sm font-medium">{item.detail.heroLabel}</p>
             <h2 className="mt-2 text-xl font-semibold">
               {item.detail.previewTitle}

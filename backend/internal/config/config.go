@@ -2,15 +2,18 @@ package config
 
 import (
 	"os"
+	"strconv"
 
 	"github.com/joho/godotenv"
 )
 
 type Config struct {
-	Port         string
-	DatabaseURL  string
-	AIServiceURL string
-	Storage      StorageConfig
+	Port                    string
+	DatabaseURL             string
+	AIServiceURL            string
+	EmbeddingDimension      int
+	EmbeddingMaxConcurrency int
+	Storage                 StorageConfig
 }
 
 type StorageConfig struct {
@@ -26,9 +29,11 @@ func Load() Config {
 	port := getEnv("PORT", "8080")
 
 	return Config{
-		Port:         port,
-		DatabaseURL:  os.Getenv("DATABASE_URL"),
-		AIServiceURL: getEnv("AI_SERVICE_URL", "http://localhost:8001"),
+		Port:                    port,
+		DatabaseURL:             os.Getenv("DATABASE_URL"),
+		AIServiceURL:            getEnv("AI_SERVICE_URL", "http://localhost:8001"),
+		EmbeddingDimension:      getEnvInt("EMBEDDING_DIMENSION", 384),
+		EmbeddingMaxConcurrency: getEnvInt("EMBEDDING_MAX_CONCURRENCY", 2),
 		Storage: StorageConfig{
 			AWSRegion: os.Getenv("AWS_REGION"),
 			S3Bucket:  os.Getenv("AWS_S3_BUCKET"),
@@ -43,6 +48,20 @@ func getEnv(key string, fallback string) string {
 	}
 
 	return value
+}
+
+func getEnvInt(key string, fallback int) int {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+
+	parsed, err := strconv.Atoi(value)
+	if err != nil || parsed <= 0 {
+		return fallback
+	}
+
+	return parsed
 }
 
 // Why this file exists:

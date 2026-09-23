@@ -33,7 +33,7 @@ func main() {
 
 	router := gin.Default()
 	router.Use(corsMiddleware())
-	routes.RegisterRoutes(router, db, cfg.AIServiceURL)
+	routes.RegisterRoutes(router, db, cfg.AIServiceURL, cfg.EmbeddingDimension, cfg.EmbeddingMaxConcurrency)
 
 	fmt.Printf("Server is running on port %s\n", cfg.Port)
 	router.Run(":" + cfg.Port)

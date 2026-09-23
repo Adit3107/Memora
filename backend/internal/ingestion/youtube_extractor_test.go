@@ -16,36 +16,12 @@ func TestYouTubeVideoID(t *testing.T) {
 		want    string
 		wantErr error
 	}{
-		{
-			name:   "watch url",
-			rawURL: "https://www.youtube.com/watch?v=abc123",
-			want:   "abc123",
-		},
-		{
-			name:   "shorts url",
-			rawURL: "https://youtube.com/shorts/short123",
-			want:   "short123",
-		},
-		{
-			name:   "short url",
-			rawURL: "https://youtu.be/shorturl123",
-			want:   "shorturl123",
-		},
-		{
-			name:   "embed url",
-			rawURL: "https://www.youtube.com/embed/embed123",
-			want:   "embed123",
-		},
-		{
-			name:    "missing video id",
-			rawURL:  "https://youtube.com/watch",
-			wantErr: ErrInvalidURL,
-		},
-		{
-			name:    "non youtube url",
-			rawURL:  "https://example.com/watch?v=abc",
-			wantErr: ErrUnsupportedSourceType,
-		},
+		{name: "watch url", rawURL: "https://www.youtube.com/watch?v=abc123", want: "abc123"},
+		{name: "shorts url", rawURL: "https://youtube.com/shorts/short123", want: "short123"},
+		{name: "short url", rawURL: "https://youtu.be/shorturl123", want: "shorturl123"},
+		{name: "embed url", rawURL: "https://www.youtube.com/embed/embed123", want: "embed123"},
+		{name: "missing video id", rawURL: "https://youtube.com/watch", wantErr: ErrInvalidURL},
+		{name: "non youtube url", rawURL: "https://example.com/watch?v=abc", wantErr: ErrUnsupportedSourceType},
 	}
 
 	for _, tt := range tests {
@@ -61,39 +37,29 @@ func TestYouTubeVideoID(t *testing.T) {
 	}
 }
 
-func TestYouTubeExtractorExtractJSONTranscript(t *testing.T) {
+func TestYouTubeExtractorUsesPythonTranscriptService(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/oembed":
-			if r.URL.Query().Get("format") != "json" {
-				t.Fatalf("metadata format query = %q", r.URL.Query().Get("format"))
-			}
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"title":" Test Video ","author_name":" Memora Channel "}`))
-		case "/timedtext":
-			if r.URL.Query().Get("v") != "abc123" {
-				t.Fatalf("transcript video id = %q", r.URL.Query().Get("v"))
-			}
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{
-				"events": [
-					{"tStartMs": 0, "dDurationMs": 12000, "segs": [{"utf8":"Hello "},{"utf8":"world"}]},
-					{"tStartMs": 12000, "dDurationMs": 13000, "segs": [{"utf8":"Second segment"}]}
-				]
-			}`))
-		default:
+		if r.URL.Path != "/extract/youtube" {
 			http.NotFound(w, r)
+			return
 		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"success": true,
+			"title": "Transcript Video",
+			"transcript_text": "Hello world second line",
+			"combined_text": "Hello world second line",
+			"transcript": [
+				{"start_seconds": 0, "end_seconds": 1.5, "text": "Hello world"},
+				{"start_seconds": 1.5, "end_seconds": 3, "text": "second line"}
+			],
+			"metadata": {"youtube_transcript_api": "true"}
+		}`))
 	}))
 	defer server.Close()
 
-	extractor := NewYouTubeExtractor(
-		server.Client(),
-		WithYouTubeMetadataEndpoint(server.URL+"/oembed"),
-		WithYouTubeTranscriptEndpoint(server.URL+"/timedtext"),
-	)
-
-	got, err := extractor.Extract(context.Background(), ExtractInput{SourceURL: "https://youtube.com/watch?v=abc123"})
+	extractor := NewYouTubeExtractor(NewPythonExtractionClient(server.URL, server.Client()))
+	got, err := extractor.Extract(context.Background(), ExtractInput{SourceURL: "https://youtu.be/abc123"})
 	if err != nil {
 		t.Fatalf("Extract() error = %v", err)
 	}
@@ -101,101 +67,36 @@ func TestYouTubeExtractorExtractJSONTranscript(t *testing.T) {
 	if got.SourceType != SourceTypeVideo {
 		t.Fatalf("SourceType = %q, want %q", got.SourceType, SourceTypeVideo)
 	}
-	if got.Title != "Test Video" {
+	if got.Title != "Transcript Video" {
 		t.Fatalf("Title = %q", got.Title)
-	}
-	if got.Author != "Memora Channel" {
-		t.Fatalf("Author = %q", got.Author)
 	}
 	if got.Metadata["video_id"] != "abc123" {
 		t.Fatalf("video_id metadata = %q", got.Metadata["video_id"])
 	}
+	if got.Metadata["extraction_service"] != "python" {
+		t.Fatalf("extraction_service metadata = %q", got.Metadata["extraction_service"])
+	}
 	if len(got.Transcript) != 2 {
 		t.Fatalf("Transcript length = %d, want 2", len(got.Transcript))
 	}
-	if got.Transcript[0].StartSeconds != 0 || got.Transcript[0].EndSeconds != 12 {
+	if got.Transcript[0].StartSeconds != 0 || got.Transcript[0].EndSeconds != 1.5 {
 		t.Fatalf("first timestamp = %+v", got.Transcript[0])
 	}
-	if !strings.Contains(got.CleanText, "Hello world") || !strings.Contains(got.CleanText, "Second segment") {
+	if !strings.Contains(got.CleanText, "Hello world") || !strings.Contains(got.CleanText, "second line") {
 		t.Fatalf("CleanText = %q", got.CleanText)
-	}
-}
-
-func TestYouTubeExtractorExtractXMLTranscript(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/oembed":
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"title":"XML Video","author_name":"Creator"}`))
-		case "/timedtext":
-			w.Header().Set("Content-Type", "application/xml")
-			_, _ = w.Write([]byte(`<transcript><text start="1.5" dur="2.25">Hello XML</text></transcript>`))
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	defer server.Close()
-
-	extractor := NewYouTubeExtractor(
-		server.Client(),
-		WithYouTubeMetadataEndpoint(server.URL+"/oembed"),
-		WithYouTubeTranscriptEndpoint(server.URL+"/timedtext"),
-	)
-
-	got, err := extractor.Extract(context.Background(), ExtractInput{SourceURL: "https://youtu.be/xml123"})
-	if err != nil {
-		t.Fatalf("Extract() error = %v", err)
-	}
-
-	if len(got.Transcript) != 1 {
-		t.Fatalf("Transcript length = %d, want 1", len(got.Transcript))
-	}
-	if got.Transcript[0].StartSeconds != 1.5 || got.Transcript[0].EndSeconds != 3.75 {
-		t.Fatalf("timestamp = %+v", got.Transcript[0])
 	}
 }
 
 func TestYouTubeExtractorHandlesUnavailableTranscript(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/oembed":
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"title":"No Transcript","author_name":"Creator"}`))
-		case "/timedtext":
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"events":[]}`))
-		default:
-			http.NotFound(w, r)
-		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":false,"error":"youtube transcript is unavailable"}`))
 	}))
 	defer server.Close()
 
-	extractor := NewYouTubeExtractor(
-		server.Client(),
-		WithYouTubeMetadataEndpoint(server.URL+"/oembed"),
-		WithYouTubeTranscriptEndpoint(server.URL+"/timedtext"),
-	)
-
-	_, err := extractor.Extract(context.Background(), ExtractInput{SourceURL: "https://youtube.com/shorts/no-transcript"})
-	if !errors.Is(err, ErrEmptyContent) {
-		t.Fatalf("Extract() error = %v, want %v", err, ErrEmptyContent)
-	}
-}
-
-func TestYouTubeExtractorHandlesUnavailableVideo(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.NotFound(w, r)
-	}))
-	defer server.Close()
-
-	extractor := NewYouTubeExtractor(
-		server.Client(),
-		WithYouTubeMetadataEndpoint(server.URL+"/oembed"),
-		WithYouTubeTranscriptEndpoint(server.URL+"/timedtext"),
-	)
-
-	_, err := extractor.Extract(context.Background(), ExtractInput{SourceURL: "https://youtube.com/watch?v=missing"})
-	if !errors.Is(err, ErrInaccessibleSource) {
-		t.Fatalf("Extract() error = %v, want %v", err, ErrInaccessibleSource)
+	extractor := NewYouTubeExtractor(NewPythonExtractionClient(server.URL, server.Client()))
+	_, err := extractor.Extract(context.Background(), ExtractInput{SourceURL: "https://youtube.com/shorts/missing"})
+	if !errors.Is(err, ErrTranscriptUnavailable) {
+		t.Fatalf("Extract() error = %v, want %v", err, ErrTranscriptUnavailable)
 	}
 }

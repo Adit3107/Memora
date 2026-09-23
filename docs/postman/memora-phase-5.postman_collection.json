@@ -1,0 +1,151 @@
+{
+  "info": {
+    "name": "Memora Phase 5-6 Minimal",
+    "description": "Minimal local collection for testing embeddings, ingestion, and search.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Backend Health",
+      "request": {
+        "method": "GET",
+        "url": "{{backend_base_url}}/health"
+      }
+    },
+    {
+      "name": "AI Health",
+      "request": {
+        "method": "GET",
+        "url": "{{ai_base_url}}/health"
+      }
+    },
+    {
+      "name": "AI - YouTube Transcript",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"url\": \"{{youtube_url}}\"\n}"
+        },
+        "url": "{{ai_base_url}}/extract/youtube"
+      }
+    },
+    {
+      "name": "AI - Embeddings",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"texts\": [\n    \"I am learning Go backend development and vector databases.\",\n    \"Memora stores transcript and document chunks in pgvector.\"\n  ]\n}"
+        },
+        "url": "{{ai_base_url}}/embeddings"
+      }
+    },
+    {
+      "name": "Backend - Search",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"space_id\": \"{{space_id}}\",\n  \"query\": \"Kafka consumer groups\",\n  \"mode\": \"hybrid\",\n  \"limit\": 10,\n  \"offset\": 0\n}"
+        },
+        "url": "{{backend_base_url}}/search"
+      }
+    },
+    {
+      "name": "Backend - Ingest YouTube URL",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "if (body.data?.content_id) pm.environment.set('content_id', body.data.content_id);",
+              "if (body.data?.ingestion_id) pm.environment.set('ingestion_id', body.data.ingestion_id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"space_id\": \"{{space_id}}\",\n  \"url\": \"{{youtube_url}}\"\n}"
+        },
+        "url": "{{backend_base_url}}/ingestion/url"
+      }
+    },
+    {
+      "name": "Backend - Ingest File",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "if (body.data?.content_id) pm.environment.set('content_id', body.data.content_id);",
+              "if (body.data?.ingestion_id) pm.environment.set('ingestion_id', body.data.ingestion_id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "user_id",
+              "value": "{{user_id}}",
+              "type": "text"
+            },
+            {
+              "key": "space_id",
+              "value": "{{space_id}}",
+              "type": "text"
+            },
+            {
+              "key": "file",
+              "type": "file",
+              "src": "{{document_file_path}}"
+            }
+          ]
+        },
+        "url": "{{backend_base_url}}/ingestion/file"
+      }
+    },
+    {
+      "name": "Backend - Get Ingestion Result",
+      "request": {
+        "method": "GET",
+        "url": "{{backend_base_url}}/ingestion/{{ingestion_id}}"
+      }
+    }
+  ]
+}

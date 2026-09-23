@@ -1,12 +1,14 @@
 from fastapi import FastAPI
 
+from app.routes.embeddings import router as embeddings_router
 from app.routes.extraction import router as extraction_router
 from app.routes.health import router as health_router
 
-app = FastAPI(title="Memora Extraction Service")
+app = FastAPI(title="Memora AI Service")
 
 app.include_router(health_router)
 app.include_router(extraction_router)
+app.include_router(embeddings_router)
 
 
 # Why this file exists:

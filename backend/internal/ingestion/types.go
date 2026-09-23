@@ -14,9 +14,6 @@ type DetectedContentType string
 
 const (
 	DetectedContentTypeYouTube    DetectedContentType = "youtube"
-	DetectedContentTypeInstagram  DetectedContentType = "instagram"
-	DetectedContentTypeFacebook   DetectedContentType = "facebook"
-	DetectedContentTypeReddit     DetectedContentType = "reddit"
 	DetectedContentTypeWebArticle DetectedContentType = "web_article"
 	DetectedContentTypePDF        DetectedContentType = "pdf"
 	DetectedContentTypeDOCX       DetectedContentType = "docx"

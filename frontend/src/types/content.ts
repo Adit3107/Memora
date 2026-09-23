@@ -3,17 +3,20 @@ import type { LucideIcon } from "lucide-react";
 export type ContentType = "video" | "document" | "article" | "image";
 
 export type SavedContentItem = {
+  id?: string;
   slug: string;
   title: string;
   type: ContentType;
   source: string;
   sourceUrl?: string;
+  thumbnailUrl?: string;
   description: string;
   metadata: string;
   dateLabel: string;
   spaceSlug: string;
   spaceName: string;
   tags: string[];
+  status?: string;
   icon: LucideIcon;
   detail: {
     heroLabel: string;
