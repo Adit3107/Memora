@@ -165,6 +165,8 @@ function toSavedContentItem(
     savedContent.find((mock) => mock.type === item.type)?.detail ??
     savedContent[0].detail;
 
+  const platform = detectPlatform(item.source_url);
+
   return {
     id: item.id,
     slug: item.id,
@@ -174,19 +176,39 @@ function toSavedContentItem(
     sourceUrl: item.source_url,
     thumbnailUrl: item.thumbnail_url,
     description: item.description || "Saved to Memora and ready for search.",
-    metadata: item.type === "video" ? "Transcript chunks" : "Extracted chunks",
+    metadata: item.type === "video" ? (platform ? `${platformLabel(platform)} chunks` : "Transcript chunks") : "Extracted chunks",
     dateLabel: formatDate(item.created_at),
     spaceSlug: item.space_id,
     spaceName: space?.name ?? "Unknown space",
     tags: [],
     status: "Ready",
     icon: iconForType[item.type],
+    platform,
     detail: template,
   };
 }
 
+function detectPlatform(url?: string): "instagram" | "facebook" | "youtube" | undefined {
+  if (!url) return undefined;
+  const lower = url.toLowerCase();
+  if (lower.includes("instagram.com")) return "instagram";
+  if (lower.includes("facebook.com") || lower.includes("fb.watch")) return "facebook";
+  if (lower.includes("youtube.com") || lower.includes("youtu.be")) return "youtube";
+  return undefined;
+}
+
+function platformLabel(platform?: string) {
+  if (platform === "instagram") return "Instagram Reel";
+  if (platform === "facebook") return "Facebook Reel";
+  if (platform === "youtube") return "YouTube";
+  return "Video";
+}
+
 function sourceLabel(item: BackendContent) {
   if (item.type === "video") {
+    const platform = detectPlatform(item.source_url);
+    if (platform === "instagram") return "Instagram Reel";
+    if (platform === "facebook") return "Facebook Reel";
     return "YouTube";
   }
   if (item.type === "document") {

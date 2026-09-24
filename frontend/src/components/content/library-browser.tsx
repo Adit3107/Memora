@@ -228,6 +228,8 @@ function toSavedContentItem(
   const type = item.type;
   const displayName = displayContentName(item);
 
+  const platform = detectPlatform(item.source_url);
+
   return {
     id: item.id,
     slug: item.id,
@@ -244,12 +246,25 @@ function toSavedContentItem(
     tags: tags.map((tag) => tag.name),
     status: "Ready",
     icon: iconForType[type],
+    platform,
     detail: savedContent.find((mock) => mock.type === type)?.detail ?? savedContent[0].detail,
   };
 }
 
+function detectPlatform(url?: string): "instagram" | "facebook" | "youtube" | undefined {
+  if (!url) return undefined;
+  const lower = url.toLowerCase();
+  if (lower.includes("instagram.com")) return "instagram";
+  if (lower.includes("facebook.com") || lower.includes("fb.watch")) return "facebook";
+  if (lower.includes("youtube.com") || lower.includes("youtu.be")) return "youtube";
+  return undefined;
+}
+
 function sourceLabel(item: BackendContent) {
   if (item.type === "video") {
+    const platform = detectPlatform(item.source_url);
+    if (platform === "instagram") return "Instagram Reel";
+    if (platform === "facebook") return "Facebook Reel";
     return "YouTube";
   }
   if (item.type === "document") {
@@ -263,6 +278,9 @@ function sourceLabel(item: BackendContent) {
 
 function metadataLabel(item: BackendContent) {
   if (item.type === "video") {
+    const platform = detectPlatform(item.source_url);
+    if (platform === "instagram") return "Instagram Reel chunks";
+    if (platform === "facebook") return "Facebook Reel chunks";
     return "Transcript chunks";
   }
   if (item.type === "document") {

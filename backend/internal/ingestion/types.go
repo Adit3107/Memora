@@ -5,6 +5,7 @@ type SourceType string
 const (
 	SourceTypeArticle  SourceType = "article"
 	SourceTypeVideo    SourceType = "video"
+	SourceTypeReel     SourceType = "reel"
 	SourceTypeDocument SourceType = "document"
 	SourceTypeImage    SourceType = "image"
 	SourceTypeText     SourceType = "text"
@@ -13,15 +14,17 @@ const (
 type DetectedContentType string
 
 const (
-	DetectedContentTypeYouTube    DetectedContentType = "youtube"
-	DetectedContentTypeWebArticle DetectedContentType = "web_article"
-	DetectedContentTypePDF        DetectedContentType = "pdf"
-	DetectedContentTypeDOCX       DetectedContentType = "docx"
-	DetectedContentTypePPTX       DetectedContentType = "pptx"
-	DetectedContentTypeTXT        DetectedContentType = "txt"
-	DetectedContentTypeCSV        DetectedContentType = "csv"
-	DetectedContentTypeXLSX       DetectedContentType = "xlsx"
-	DetectedContentTypeImage      DetectedContentType = "image"
+	DetectedContentTypeYouTube       DetectedContentType = "youtube"
+	DetectedContentTypeInstagramReel DetectedContentType = "instagram"
+	DetectedContentTypeFacebookReel  DetectedContentType = "facebook"
+	DetectedContentTypeWebArticle    DetectedContentType = "web_article"
+	DetectedContentTypePDF           DetectedContentType = "pdf"
+	DetectedContentTypeDOCX          DetectedContentType = "docx"
+	DetectedContentTypePPTX          DetectedContentType = "pptx"
+	DetectedContentTypeTXT           DetectedContentType = "txt"
+	DetectedContentTypeCSV           DetectedContentType = "csv"
+	DetectedContentTypeXLSX          DetectedContentType = "xlsx"
+	DetectedContentTypeImage         DetectedContentType = "image"
 )
 
 type IngestionResult struct {

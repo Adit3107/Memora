@@ -73,8 +73,10 @@ func NewIngestionService(contentRepo *repository.ContentRepository, spaceRepo *r
 		embeddingDimension:      embeddingDimension,
 		embeddingMaxConcurrency: embeddingMaxConcurrency,
 		extractors: map[ingestion.DetectedContentType]ingestion.Extractor{
-			ingestion.DetectedContentTypeYouTube:    ingestion.NewYouTubeExtractor(pythonClient),
-			ingestion.DetectedContentTypeWebArticle: ingestion.NewWebArticleExtractor(nil),
+			ingestion.DetectedContentTypeYouTube:       ingestion.NewYouTubeExtractor(pythonClient),
+			ingestion.DetectedContentTypeInstagramReel: ingestion.NewReelExtractor(pythonClient),
+			ingestion.DetectedContentTypeFacebookReel:  ingestion.NewReelExtractor(pythonClient),
+			ingestion.DetectedContentTypeWebArticle:    ingestion.NewWebArticleExtractor(nil),
 		},
 		fileExtractors: map[ingestion.DetectedContentType]ingestion.Extractor{
 			ingestion.DetectedContentTypePDF:   ingestion.NewPythonDocumentExtractor(pythonClient),
@@ -169,7 +171,7 @@ func (s *IngestionService) IngestFile(ctx context.Context, input IngestFileInput
 
 func modelContentTypeForDetected(detected ingestion.DetectedContentType) models.ContentType {
 	switch detected {
-	case ingestion.DetectedContentTypeYouTube:
+	case ingestion.DetectedContentTypeYouTube, ingestion.DetectedContentTypeInstagramReel, ingestion.DetectedContentTypeFacebookReel:
 		return models.ContentTypeVideo
 	case ingestion.DetectedContentTypeImage:
 		return models.ContentTypeImage
@@ -319,6 +321,10 @@ func contentWithExtractedMetadata(content models.Content, cleaned ingestion.Inge
 
 	if description := strings.TrimSpace(cleaned.Description); description != "" {
 		content.Description = description
+	}
+	if thumb, ok := cleaned.Metadata["thumbnail_url"]; ok && strings.TrimSpace(thumb) != "" && (content.ThumbnailURL == nil || *content.ThumbnailURL == "") {
+		trimmed := strings.TrimSpace(thumb)
+		content.ThumbnailURL = &trimmed
 	}
 	content.UpdatedAt = time.Now().UTC()
 	return content

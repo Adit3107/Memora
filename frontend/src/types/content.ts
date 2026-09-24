@@ -18,6 +18,9 @@ export type SavedContentItem = {
   tags: string[];
   status?: string;
   icon: LucideIcon;
+  creator?: string;
+  duration?: string;
+  platform?: "youtube" | "instagram" | "facebook" | string;
   detail: {
     heroLabel: string;
     previewTitle: string;

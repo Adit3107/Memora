@@ -29,6 +29,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { Button } from "../ui/button";
+import { FacebookIcon, InstagramIcon, YouTubeIcon } from "../ui/platform-icons";
 
 type InputType = "video" | "document";
 type SubmitState = "idle" | "processing" | "success" | "error";
@@ -41,8 +42,8 @@ const inputOptions: {
 }[] = [
   {
     value: "video",
-    label: "Video",
-    description: "YouTube URL",
+    label: "Video & Reels",
+    description: "YouTube, Instagram, or Facebook Reel",
     icon: Video,
   },
   {
@@ -81,6 +82,23 @@ export function SaveContentForm() {
     () => spaces.find((space) => space.id === spaceID),
     [spaceID, spaces]
   );
+  const detectedPlatform = useMemo(() => {
+    const trimmed = url.trim().toLowerCase();
+    if (trimmed.includes("instagram.com/") || trimmed.includes("instagr.am/")) {
+      return "instagram";
+    }
+    if (
+      trimmed.includes("facebook.com/") ||
+      trimmed.includes("fb.watch/") ||
+      trimmed.includes("fb.com/")
+    ) {
+      return "facebook";
+    }
+    if (trimmed.includes("youtube.com/") || trimmed.includes("youtu.be/")) {
+      return "youtube";
+    }
+    return null;
+  }, [url]);
 
   async function loadFormData() {
     try {
@@ -151,7 +169,7 @@ export function SaveContentForm() {
     }
 
     if (inputType === "video" && !url.trim()) {
-      setError("Paste a YouTube URL before saving.");
+      setError("Paste a video or reel URL before saving.");
       setState("error");
       return;
     }
@@ -189,7 +207,11 @@ export function SaveContentForm() {
           : saved;
 
       if (selectedTagNames.length > 0) {
-        await applyTags(finalResult.content_id, selectedTagNames);
+        try {
+          await applyTags(finalResult.content_id, selectedTagNames);
+        } catch (tagErr) {
+          console.warn("Failed to apply tags:", tagErr);
+        }
       }
 
       setResult(finalResult);
@@ -197,7 +219,11 @@ export function SaveContentForm() {
       setState("success");
     } catch (caught) {
       console.error(caught);
-      setError("We couldn't process this content. Please try again.");
+      const message =
+        caught instanceof Error && caught.message
+          ? caught.message
+          : "We couldn't process this content. Please try again.";
+      setError(message);
       setState("error");
     }
   }
@@ -207,7 +233,9 @@ export function SaveContentForm() {
     const ensuredTags = await Promise.all(
       tagNames.map(async (tagName) => {
         const existing = existingTags.find(
-          (tag) => tag.name.toLowerCase() === tagName.toLowerCase()
+          (tag) =>
+            tag.name.toLowerCase() === tagName.toLowerCase() &&
+            tag.user_id === MEMORA_DEMO_USER_ID
         );
         return (
           existing ??
@@ -293,18 +321,42 @@ export function SaveContentForm() {
             </label>
 
             {inputType === "video" ? (
-              <label className="space-y-2 text-sm font-medium" htmlFor="content-url">
-                Paste a YouTube URL
+              <div className="space-y-2">
+                <label className="block text-sm font-medium" htmlFor="content-url">
+                  Paste a Video or Reel URL
+                </label>
                 <input
                   className="h-11 w-full rounded-md border bg-background px-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
                   disabled={isProcessing}
                   id="content-url"
                   onChange={(event) => setUrl(event.target.value)}
-                  placeholder="https://youtube.com/watch?v=..."
+                  placeholder="https://instagram.com/reel/..., fb.watch/..., or youtube.com/..."
                   type="url"
                   value={url}
                 />
-              </label>
+                <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                  {detectedPlatform === "instagram" ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-md border border-pink-500/30 bg-pink-500/10 px-2 py-0.5 font-medium text-pink-400">
+                      <InstagramIcon className="size-3.5" />
+                      <span>Instagram Reel detected</span>
+                    </span>
+                  ) : detectedPlatform === "facebook" ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-md border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 font-medium text-blue-400">
+                      <FacebookIcon className="size-3.5" />
+                      <span>Facebook Reel detected</span>
+                    </span>
+                  ) : detectedPlatform === "youtube" ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-md border border-red-500/30 bg-red-500/10 px-2 py-0.5 font-medium text-red-400">
+                      <YouTubeIcon className="size-3.5" />
+                      <span>YouTube Video detected</span>
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">
+                      Supported: YouTube, Instagram Reels, Facebook Reels
+                    </span>
+                  )}
+                </div>
+              </div>
             ) : (
               <label
                 className="flex min-h-52 cursor-pointer flex-col items-center justify-center rounded-md border border-dashed bg-background p-6 text-center transition-colors hover:bg-accent/40"

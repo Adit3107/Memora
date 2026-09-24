@@ -20,13 +20,39 @@ type PythonExtractionClient struct {
 	client  HTTPClient
 }
 
+func normalizeBaseURL(raw string) string {
+	cleaned := strings.TrimRight(strings.TrimSpace(raw), "/")
+	return strings.Replace(cleaned, "localhost", "127.0.0.1", -1)
+}
+
+func fallbackURL(targetURL string) string {
+	if strings.Contains(targetURL, ":8001") {
+		return strings.Replace(targetURL, ":8001", ":8000", 1)
+	}
+	if strings.Contains(targetURL, ":8000") {
+		return strings.Replace(targetURL, ":8000", ":8001", 1)
+	}
+	return ""
+}
+
+func isConnectionRefused(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "refused") ||
+		strings.Contains(msg, "connectex") ||
+		strings.Contains(msg, "connection refused") ||
+		strings.Contains(msg, "no connection could be made")
+}
+
 func NewPythonExtractionClient(baseURL string, client HTTPClient) *PythonExtractionClient {
 	if client == nil {
-		client = &http.Client{Timeout: 30 * time.Second}
+		client = &http.Client{Timeout: 60 * time.Second}
 	}
 
 	return &PythonExtractionClient{
-		baseURL: strings.TrimRight(strings.TrimSpace(baseURL), "/"),
+		baseURL: normalizeBaseURL(baseURL),
 		client:  client,
 	}
 }
@@ -61,6 +87,21 @@ func (c *PythonExtractionClient) ExtractYouTubeTranscript(ctx context.Context, s
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.client.Do(req)
+	if err != nil && isConnectionRefused(err) {
+		if altEndpoint := fallbackURL(endpoint); altEndpoint != "" {
+			altReq, altErr := http.NewRequestWithContext(ctx, http.MethodPost, altEndpoint, bytes.NewReader(requestBody))
+			if altErr == nil {
+				altReq.Header.Set("Content-Type", "application/json")
+				if altResp, altDoErr := c.client.Do(altReq); altDoErr == nil {
+					resp = altResp
+					err = nil
+					if altBase := fallbackURL(c.baseURL); altBase != "" {
+						c.baseURL = altBase
+					}
+				}
+			}
+		}
+	}
 	if err != nil {
 		return pythonYouTubeTranscriptResponse{}, err
 	}
@@ -83,6 +124,70 @@ func (c *PythonExtractionClient) ExtractYouTubeTranscript(ctx context.Context, s
 			return pythonYouTubeTranscriptResponse{}, ErrTranscriptUnavailable
 		}
 		return pythonYouTubeTranscriptResponse{}, fmt.Errorf("%w: %s", ErrExtractionFailed, message)
+	}
+
+	return payload, nil
+}
+
+func (c *PythonExtractionClient) ExtractReel(ctx context.Context, sourceURL string, platform string) (pythonReelResponse, error) {
+	if c.baseURL == "" {
+		return pythonReelResponse{}, ErrInaccessibleSource
+	}
+
+	endpoint, err := c.endpoint("/extract/reel")
+	if err != nil {
+		return pythonReelResponse{}, err
+	}
+
+	requestBody, err := json.Marshal(pythonReelRequest{
+		URL:      sourceURL,
+		Platform: platform,
+	})
+	if err != nil {
+		return pythonReelResponse{}, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(requestBody))
+	if err != nil {
+		return pythonReelResponse{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.client.Do(req)
+	if err != nil && isConnectionRefused(err) {
+		if altEndpoint := fallbackURL(endpoint); altEndpoint != "" {
+			altReq, altErr := http.NewRequestWithContext(ctx, http.MethodPost, altEndpoint, bytes.NewReader(requestBody))
+			if altErr == nil {
+				altReq.Header.Set("Content-Type", "application/json")
+				if altResp, altDoErr := c.client.Do(altReq); altDoErr == nil {
+					resp = altResp
+					err = nil
+					if altBase := fallbackURL(c.baseURL); altBase != "" {
+						c.baseURL = altBase
+					}
+				}
+			}
+		}
+	}
+	if err != nil {
+		return pythonReelResponse{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return pythonReelResponse{}, fmt.Errorf("%w: python service returned %d", ErrExtractionFailed, resp.StatusCode)
+	}
+
+	var payload pythonReelResponse
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 10*1024*1024)).Decode(&payload); err != nil {
+		return pythonReelResponse{}, err
+	}
+	if !payload.Success {
+		message := strings.TrimSpace(payload.Error)
+		if message == "" {
+			return pythonReelResponse{}, ErrTranscriptUnavailable
+		}
+		return pythonReelResponse{}, fmt.Errorf("%w: %s", ErrExtractionFailed, message)
 	}
 
 	return payload, nil
@@ -135,6 +240,29 @@ func (c *PythonExtractionClient) extractFile(ctx context.Context, endpointPath s
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	resp, err := c.client.Do(req)
+	if err != nil && isConnectionRefused(err) {
+		if altEndpoint := fallbackURL(endpoint); altEndpoint != "" {
+			altRequestBody := &bytes.Buffer{}
+			altWriter := multipart.NewWriter(altRequestBody)
+			altFileWriter, _ := createFormFileWithContentType(altWriter, "file", input.FileName, input.ContentType)
+			if altFileWriter != nil {
+				_, _ = altFileWriter.Write(data)
+				_ = altWriter.WriteField("content_type", input.ContentType)
+				_ = altWriter.Close()
+				altReq, altErr := http.NewRequestWithContext(ctx, http.MethodPost, altEndpoint, altRequestBody)
+				if altErr == nil {
+					altReq.Header.Set("Content-Type", altWriter.FormDataContentType())
+					if altResp, altDoErr := c.client.Do(altReq); altDoErr == nil {
+						resp = altResp
+						err = nil
+						if altBase := fallbackURL(c.baseURL); altBase != "" {
+							c.baseURL = altBase
+						}
+					}
+				}
+			}
+		}
+	}
 	if err != nil {
 		return IngestionResult{}, err
 	}
@@ -232,6 +360,23 @@ type pythonYouTubeTranscriptResponse struct {
 	Transcript     []TranscriptSegment `json:"transcript"`
 	Metadata       map[string]string   `json:"metadata"`
 	Error          string              `json:"error"`
+}
+
+type pythonReelRequest struct {
+	URL      string `json:"url"`
+	Platform string `json:"platform"`
+}
+
+type pythonReelResponse struct {
+	Success         bool                `json:"success"`
+	Title           string              `json:"title"`
+	Description     string              `json:"description"`
+	Uploader        string              `json:"uploader"`
+	ThumbnailURL    string              `json:"thumbnail_url"`
+	DurationSeconds float64             `json:"duration_seconds"`
+	Transcript      []TranscriptSegment `json:"transcript"`
+	Metadata        map[string]string   `json:"metadata"`
+	Error           string              `json:"error"`
 }
 
 type PythonDocumentExtractor struct {

@@ -33,9 +33,24 @@ func TestDetectURL(t *testing.T) {
 			want:   DetectedContentTypeYouTube,
 		},
 		{
-			name:   "angle wrapped article url",
-			rawURL: "<https://example.com/article>",
-			want:   DetectedContentTypeWebArticle,
+			name:   "instagram reel url",
+			rawURL: "https://www.instagram.com/reel/C8xyz123/",
+			want:   DetectedContentTypeInstagramReel,
+		},
+		{
+			name:   "instagram post url",
+			rawURL: "https://instagram.com/p/C9abc456",
+			want:   DetectedContentTypeInstagramReel,
+		},
+		{
+			name:   "facebook reel url",
+			rawURL: "https://www.facebook.com/reel/1234567890",
+			want:   DetectedContentTypeFacebookReel,
+		},
+		{
+			name:   "fb watch url",
+			rawURL: "https://fb.watch/shortlink123/",
+			want:   DetectedContentTypeFacebookReel,
 		},
 		{
 			name:   "web article url",

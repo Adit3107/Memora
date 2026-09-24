@@ -39,7 +39,7 @@ func NewPythonEmbeddingClient(baseURL string, client HTTPClient, expectedDimensi
 	}
 
 	return &PythonEmbeddingClient{
-		baseURL:           strings.TrimRight(strings.TrimSpace(baseURL), "/"),
+		baseURL:           normalizeBaseURL(baseURL),
 		client:            client,
 		expectedDimension: expectedDimension,
 	}
@@ -78,6 +78,21 @@ func (c *PythonEmbeddingClient) Generate(ctx context.Context, texts []string) (E
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.client.Do(req)
+	if err != nil && isConnectionRefused(err) {
+		if altEndpoint := fallbackURL(endpoint); altEndpoint != "" {
+			altReq, altErr := http.NewRequestWithContext(ctx, http.MethodPost, altEndpoint, bytes.NewReader(requestBody))
+			if altErr == nil {
+				altReq.Header.Set("Content-Type", "application/json")
+				if altResp, altDoErr := c.client.Do(altReq); altDoErr == nil {
+					resp = altResp
+					err = nil
+					if altBase := fallbackURL(c.baseURL); altBase != "" {
+						c.baseURL = altBase
+					}
+				}
+			}
+		}
+	}
 	if err != nil {
 		slog.Error("python embedding service request failed", "error", err)
 		return EmbeddingBatch{}, err

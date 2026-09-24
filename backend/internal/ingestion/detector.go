@@ -22,9 +22,14 @@ func DetectURL(rawURL string) (DetectedContentType, error) {
 	}
 
 	host := normalizedHost(parsedURL.Host)
+	path := strings.ToLower(parsedURL.Path)
 	switch {
 	case isYouTubeHost(host):
 		return DetectedContentTypeYouTube, nil
+	case isInstagramReel(host, path):
+		return DetectedContentTypeInstagramReel, nil
+	case isFacebookReel(host, path):
+		return DetectedContentTypeFacebookReel, nil
 	default:
 		return DetectedContentTypeWebArticle, nil
 	}
@@ -78,6 +83,32 @@ func normalizedMediaType(mimeType string) string {
 
 func isYouTubeHost(host string) bool {
 	return host == "youtube.com" || host == "m.youtube.com" || host == "youtu.be"
+}
+
+func isInstagramReel(host string, path string) bool {
+	if host != "instagram.com" && host != "m.instagram.com" {
+		return false
+	}
+	cleanPath := strings.ToLower(strings.Trim(path, "/"))
+	return strings.HasPrefix(cleanPath, "reel/") ||
+		strings.HasPrefix(cleanPath, "reels/") ||
+		strings.HasPrefix(cleanPath, "p/") ||
+		strings.HasPrefix(cleanPath, "tv/")
+}
+
+func isFacebookReel(host string, path string) bool {
+	if host == "fb.watch" {
+		return true
+	}
+	if host != "facebook.com" && host != "m.facebook.com" && host != "web.facebook.com" {
+		return false
+	}
+	cleanPath := strings.ToLower(strings.Trim(path, "/"))
+	return strings.HasPrefix(cleanPath, "reel/") ||
+		strings.HasPrefix(cleanPath, "reels/") ||
+		strings.HasPrefix(cleanPath, "watch") ||
+		strings.HasPrefix(cleanPath, "share/r/") ||
+		strings.Contains(cleanPath, "/videos/")
 }
 
 func detectByMIMEType(mediaType string) (DetectedContentType, bool) {

@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -40,11 +41,15 @@ func Load() Config {
 	_ = godotenv.Load("backend/.env")
 
 	port := getEnv("PORT", "8080")
+	aiURL := getEnv("AI_SERVICE_URL", "http://127.0.0.1:8001")
+	// On Windows, localhost can resolve to IPv6 [::1] which fails if the AI service
+	// is listening on IPv4 (0.0.0.0 / 127.0.0.1). Normalize to 127.0.0.1.
+	aiURL = strings.Replace(aiURL, "localhost", "127.0.0.1", -1)
 
 	return Config{
 		Port:                    port,
 		DatabaseURL:             os.Getenv("DATABASE_URL"),
-		AIServiceURL:            getEnv("AI_SERVICE_URL", "http://localhost:8001"),
+		AIServiceURL:            aiURL,
 		EmbeddingDimension:      getEnvInt("EMBEDDING_DIMENSION", 384),
 		EmbeddingMaxConcurrency: getEnvInt("EMBEDDING_MAX_CONCURRENCY", 2),
 		GeminiAPIKey:            os.Getenv("GEMINI_API_KEY"),

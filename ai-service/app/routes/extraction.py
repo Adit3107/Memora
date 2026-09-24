@@ -1,6 +1,13 @@
-from app.models.extraction import ExtractionResponse, YouTubeTranscriptRequest, YouTubeTranscriptResponse
+from app.models.extraction import (
+    ExtractionResponse,
+    ReelExtractionRequest,
+    ReelExtractionResponse,
+    YouTubeTranscriptRequest,
+    YouTubeTranscriptResponse,
+)
 from app.services.documents import extract_document
 from app.services.images import extract_image
+from app.services.reels import extract_reel
 from app.services.videos import extract_youtube_transcript
 from fastapi import APIRouter, File, Form, UploadFile
 
@@ -36,6 +43,11 @@ async def image(
 @router.post("/youtube", response_model=YouTubeTranscriptResponse)
 def youtube(request: YouTubeTranscriptRequest) -> YouTubeTranscriptResponse:
     return extract_youtube_transcript(url=request.url)
+
+
+@router.post("/reel", response_model=ReelExtractionResponse)
+def reel(request: ReelExtractionRequest) -> ReelExtractionResponse:
+    return extract_reel(url=request.url, platform=request.platform)
 
 
 # Why this file exists:
