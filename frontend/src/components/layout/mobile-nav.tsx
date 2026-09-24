@@ -1,6 +1,6 @@
 "use client";
 
-import { Home, Library, PlusCircle, Search, Settings } from "lucide-react";
+import { Bot, Home, Library, PlusCircle, Search, Settings } from "lucide-react";
 
 import { NavLink } from "./nav-link";
 
@@ -14,6 +14,11 @@ const mobileNavigation = [
     title: "Search",
     href: "/app/search",
     icon: Search,
+  },
+  {
+    title: "AI",
+    href: "/app/ai",
+    icon: Bot,
   },
   {
     title: "Library",
@@ -35,7 +40,7 @@ const mobileNavigation = [
 export function MobileNav() {
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 gap-1 border-t bg-background/95 px-2 py-2 backdrop-blur lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-6 gap-1 border-t bg-background/95 px-2 py-2 backdrop-blur lg:hidden"
       aria-label="Mobile navigation"
     >
       {mobileNavigation.map((item) => (

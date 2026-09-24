@@ -2,6 +2,7 @@
 
 import {
   BookOpen,
+  Bot,
   ChevronLeft,
   FileText,
   Home,
@@ -32,6 +33,7 @@ type SidebarProps = {
 
 const primaryNavigation = [
   { title: "Home", href: "/app", icon: Home },
+  { title: "AI Playground", href: "/app/ai", icon: Bot, badge: "Soon" },
   { title: "Search", href: "/app/search", icon: Search },
   { title: "Library", href: "/app/library", icon: Library },
 ];
@@ -146,6 +148,13 @@ function SidebarNav({
         />
         <div className="space-y-2">
           <GroupLabel collapsed={collapsed}>Spaces</GroupLabel>
+          <SidebarItem
+            collapsed={collapsed}
+            icon={Plus}
+            onNavigate={onNavigate}
+            title="Create Space"
+            href="/app/spaces"
+          />
           {spaces.slice(0, 4).map((space) => (
             <SidebarItem
               collapsed={collapsed}
@@ -205,6 +214,7 @@ function NavGroup({
       {label ? <GroupLabel collapsed={collapsed}>{label}</GroupLabel> : null}
       {items.map((item) => (
         <SidebarItem
+          badge={"badge" in item ? (item.badge as string) : undefined}
           collapsed={collapsed}
           href={item.href}
           icon={item.icon}
@@ -236,12 +246,14 @@ function GroupLabel({
 }
 
 function SidebarItem({
+  badge,
   collapsed,
   href,
   icon: Icon,
   onNavigate,
   title,
 }: {
+  badge?: string;
   collapsed: boolean;
   href: string;
   icon: typeof Home;
@@ -264,7 +276,16 @@ function SidebarItem({
       title={collapsed ? title : undefined}
     >
       <Icon className="size-4 shrink-0" aria-hidden="true" />
-      {!collapsed ? <span className="truncate">{title}</span> : null}
+      {!collapsed ? (
+        <>
+          <span className="truncate">{title}</span>
+          {badge ? (
+            <span className="ml-auto rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+              {badge}
+            </span>
+          ) : null}
+        </>
+      ) : null}
     </Link>
   );
 }

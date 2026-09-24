@@ -10,10 +10,7 @@ export default function SignupPage() {
       <section className="landing-panel landing-shell grid w-full max-w-5xl overflow-hidden rounded-2xl lg:grid-cols-[0.95fr_1.05fr]">
         <div className="border-b p-8 lg:border-b-0 lg:border-r">
           <Link className="flex items-center gap-3 font-semibold" href="/">
-            <span className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              M
-            </span>
-            MEMORA
+            <span className="memora-wordmark text-2xl">Memora</span>
           </Link>
           <h1 className="mt-14 text-4xl font-semibold tracking-normal">
             Create your Memora

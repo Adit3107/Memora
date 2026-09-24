@@ -1,7 +1,7 @@
 "use client";
 
 import { Search } from "lucide-react";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { EmptyState } from "@/components/content/empty-state";
 import { ErrorState } from "@/components/feedback/error-state";
@@ -70,6 +70,8 @@ export function SearchBrowser() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadFilters();
   }, []);
+
+  const visibleResults = useMemo(() => dedupeByContent(results), [results]);
 
   async function runSearch(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
@@ -230,25 +232,38 @@ export function SearchBrowser() {
         />
       ) : null}
 
-      {!isSearching && !error && hasSearched && results.length === 0 ? (
+      {!isSearching && !error && hasSearched && visibleResults.length === 0 ? (
         <EmptyState
           title="No memories found"
           description={`We couldn't find anything matching "${query.trim()}". Try different keywords, a broader question, or another Space.`}
         />
       ) : null}
 
-      {!isSearching && !error && results.length > 0 ? (
+      {!isSearching && !error && visibleResults.length > 0 ? (
         <section className="grid gap-3">
           <p className="text-sm text-muted-foreground">
-            Showing {results.length} of {total} ranked results
+            Showing {visibleResults.length} saved item
+            {visibleResults.length === 1 ? "" : "s"} from {total} ranked match
+            {total === 1 ? "" : "es"}
           </p>
-          {results.map((item) => (
-            <SearchResultCard item={item} key={item.chunk_id} />
+          {visibleResults.map((item) => (
+            <SearchResultCard item={item} key={item.content_id} />
           ))}
         </section>
       ) : null}
     </div>
   );
+}
+
+function dedupeByContent(results: SearchResult[]) {
+  const byContentID = new Map<string, SearchResult>();
+  for (const result of results) {
+    const existing = byContentID.get(result.content_id);
+    if (!existing || result.score > existing.score) {
+      byContentID.set(result.content_id, result);
+    }
+  }
+  return Array.from(byContentID.values());
 }
 
 function SearchSkeleton() {

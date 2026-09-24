@@ -3,6 +3,7 @@ package routes
 import (
 	"database/sql"
 
+	"memora-backend/internal/config"
 	"memora-backend/internal/handlers"
 	"memora-backend/internal/repository"
 	"memora-backend/internal/services"
@@ -10,13 +11,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func RegisterRoutes(router *gin.Engine, db *sql.DB, aiServiceURL string, embeddingDimension int, embeddingMaxConcurrency int) {
+func RegisterRoutes(router *gin.Engine, db *sql.DB, cfg config.Config) {
 	userRepo := repository.NewPostgresUserRepository(db)
 	spaceRepo := repository.NewPostgresSpaceRepository(db)
 	contentRepo := repository.NewPostgresContentRepository(db)
 	tagRepo := repository.NewPostgresTagRepository(db)
 	contentTagRepo := repository.NewPostgresContentTagRepository(db)
-	ingestionRepo := repository.NewPostgresIngestionRepository(db, embeddingDimension)
+	ingestionRepo := repository.NewPostgresIngestionRepository(db, cfg.EmbeddingDimension)
 	searchRepo := repository.NewPostgresSearchRepository(db)
 
 	userHandler := handlers.NewUserHandler(services.NewUserService(userRepo))
@@ -25,8 +26,21 @@ func RegisterRoutes(router *gin.Engine, db *sql.DB, aiServiceURL string, embeddi
 	contentHandler := handlers.NewContentHandler(services.NewContentService(contentRepo), contentTagService)
 	tagHandler := handlers.NewTagHandler(services.NewTagService(tagRepo, contentTagRepo), contentTagService)
 	contentTagHandler := handlers.NewContentTagHandler(contentTagService)
-	ingestionHandler := handlers.NewIngestionHandler(services.NewIngestionService(contentRepo, spaceRepo, ingestionRepo, aiServiceURL, embeddingDimension, embeddingMaxConcurrency))
-	searchHandler := handlers.NewSearchHandler(services.NewSearchService(searchRepo, aiServiceURL, embeddingDimension))
+	ingestionHandler := handlers.NewIngestionHandler(services.NewIngestionService(contentRepo, spaceRepo, ingestionRepo, cfg.AIServiceURL, cfg.EmbeddingDimension, cfg.EmbeddingMaxConcurrency))
+	searchService := services.NewSearchService(searchRepo, cfg.AIServiceURL, cfg.EmbeddingDimension)
+	searchHandler := handlers.NewSearchHandler(searchService)
+	// === PAUSED FEATURE: RAG Service (Put on hold for upcoming release) ===
+	// ragHandler := handlers.NewRAGHandler(services.NewRAGService(
+	// 	searchService,
+	// 	services.NewGeminiLLMService(cfg.GeminiAPIKey, cfg.GeminiModel),
+	// 	services.RAGConfig{
+	// 		TopK:               cfg.RAG.TopK,
+	// 		HistoryMessages:    cfg.RAG.HistoryMessages,
+	// 		ContextMaxChars:    cfg.RAG.ContextMaxChars,
+	// 		ChunkMaxChars:      cfg.RAG.ChunkMaxChars,
+	// 		AllowLocalFallback: cfg.RAG.AllowLocalFallback,
+	// 	},
+	// ))
 
 	api := router.Group("/api")
 
@@ -64,6 +78,9 @@ func RegisterRoutes(router *gin.Engine, db *sql.DB, aiServiceURL string, embeddi
 	searchRoutes := api.Group("/search")
 	searchRoutes.POST("", searchHandler.Search)
 	searchRoutes.POST("/semantic", searchHandler.Semantic)
+
+	// === PAUSED FEATURE: RAG Endpoint ===
+	// api.POST("/rag", ragHandler.Ask)
 
 	tags := api.Group("/tags")
 	tags.POST("", tagHandler.Create)

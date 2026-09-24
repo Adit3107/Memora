@@ -33,9 +33,10 @@ func main() {
 
 	router := gin.Default()
 	router.Use(corsMiddleware())
-	routes.RegisterRoutes(router, db, cfg.AIServiceURL, cfg.EmbeddingDimension, cfg.EmbeddingMaxConcurrency)
+	routes.RegisterRoutes(router, db, cfg)
 
 	fmt.Printf("Server is running on port %s\n", cfg.Port)
+	fmt.Printf("Gemini configured: %t (model: %s)\n", cfg.GeminiAPIKey != "", cfg.GeminiModel)
 	router.Run(":" + cfg.Port)
 }
 

@@ -23,15 +23,16 @@ func (r *ContentRepository) Create(content models.Content) (models.Content, erro
 	// RETURNING asks Postgres to send back generated values like id.
 	err := r.db.QueryRowContext(ctx, `
 		INSERT INTO content (
-			user_id, space_id, title, description, type,
+			user_id, space_id, name, title, description, type,
 			source_url, thumbnail_url, created_at, updated_at
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-		RETURNING id, user_id, space_id, title, description, type,
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		RETURNING id, user_id, space_id, name, title, description, type,
 			source_url, thumbnail_url, created_at, updated_at
 	`,
 		content.UserID,
 		content.SpaceID,
+		content.Name,
 		content.Title,
 		content.Description,
 		content.Type,
@@ -43,6 +44,7 @@ func (r *ContentRepository) Create(content models.Content) (models.Content, erro
 		&content.ID,
 		&content.UserID,
 		&content.SpaceID,
+		&content.Name,
 		&content.Title,
 		&content.Description,
 		&content.Type,
@@ -62,7 +64,7 @@ func (r *ContentRepository) List() ([]models.Content, error) {
 	ctx := context.Background()
 
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, user_id, space_id, title, description, type,
+		SELECT id, user_id, space_id, name, title, description, type,
 			source_url, thumbnail_url, created_at, updated_at
 		FROM content
 		ORDER BY created_at DESC
@@ -93,7 +95,7 @@ func (r *ContentRepository) GetByID(id string) (models.Content, error) {
 
 	var content models.Content
 	err := r.db.QueryRowContext(ctx, `
-		SELECT id, user_id, space_id, title, description, type,
+		SELECT id, user_id, space_id, name, title, description, type,
 			source_url, thumbnail_url, created_at, updated_at
 		FROM content
 		WHERE id = $1
@@ -101,6 +103,7 @@ func (r *ContentRepository) GetByID(id string) (models.Content, error) {
 		&content.ID,
 		&content.UserID,
 		&content.SpaceID,
+		&content.Name,
 		&content.Title,
 		&content.Description,
 		&content.Type,
@@ -124,14 +127,15 @@ func (r *ContentRepository) Update(id string, content models.Content) (models.Co
 
 	err := r.db.QueryRowContext(ctx, `
 		UPDATE content
-		SET user_id = $1, space_id = $2, title = $3, description = $4,
-			type = $5, source_url = $6, thumbnail_url = $7, updated_at = $8
-		WHERE id = $9
-		RETURNING id, user_id, space_id, title, description, type,
+		SET user_id = $1, space_id = $2, name = $3, title = $4, description = $5,
+			type = $6, source_url = $7, thumbnail_url = $8, updated_at = $9
+		WHERE id = $10
+		RETURNING id, user_id, space_id, name, title, description, type,
 			source_url, thumbnail_url, created_at, updated_at
 	`,
 		content.UserID,
 		content.SpaceID,
+		content.Name,
 		content.Title,
 		content.Description,
 		content.Type,
@@ -143,6 +147,7 @@ func (r *ContentRepository) Update(id string, content models.Content) (models.Co
 		&content.ID,
 		&content.UserID,
 		&content.SpaceID,
+		&content.Name,
 		&content.Title,
 		&content.Description,
 		&content.Type,
@@ -188,6 +193,7 @@ func scanContent(rows *sql.Rows, content *models.Content) error {
 		&content.ID,
 		&content.UserID,
 		&content.SpaceID,
+		&content.Name,
 		&content.Title,
 		&content.Description,
 		&content.Type,

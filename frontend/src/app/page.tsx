@@ -13,9 +13,16 @@ import {
   Video,
   type LucideIcon,
 } from "lucide-react";
-import { motion, useMotionValueEvent, useScroll, useTransform } from "framer-motion";
+import {
+  motion,
+  useMotionValueEvent,
+  useScroll,
+  useSpring,
+  useTransform,
+  type MotionValue,
+} from "framer-motion";
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { buttonVariants } from "@/components/ui/button";
@@ -227,10 +234,7 @@ function FloatingNavbar() {
     >
       <nav className="landing-shell mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link className="flex items-center gap-3 font-semibold tracking-normal" href="/">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg">
-            M
-          </span>
-          <span className="text-lg">MEMORA</span>
+          <span className="memora-wordmark text-xl sm:text-2xl">Memora</span>
         </Link>
         <div className="hidden items-center gap-8 text-sm font-medium landing-muted md:flex">
           <a className="transition-colors hover:text-foreground" href="#product">
@@ -286,10 +290,7 @@ function ProductPreview() {
       <div className="landing-panel overflow-hidden rounded-[2rem]">
         <div className="flex items-center justify-between border-b px-5 py-4">
           <div className="flex items-center gap-3">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-primary font-semibold text-primary-foreground">
-              M
-            </span>
-            <span className="font-semibold">MEMORA</span>
+            <span className="memora-wordmark text-lg">Memora</span>
           </div>
           <div className="hidden h-10 w-[42%] items-center gap-3 rounded-full border bg-background px-4 text-sm landing-muted md:flex">
             <Search className="size-4" />
@@ -438,6 +439,17 @@ function FeatureRows() {
 }
 
 function AnimatedPipeline() {
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start 0.8", "end 0.35"],
+  });
+  const beamProgress = useSpring(scrollYProgress, {
+    stiffness: 110,
+    damping: 26,
+    mass: 0.4,
+  });
+
   return (
     <section className="landing-shell mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8" id="docs">
       <div className="max-w-3xl">
@@ -445,32 +457,94 @@ function AnimatedPipeline() {
         <h2 className="mt-4 text-4xl font-semibold tracking-normal sm:text-6xl">
           Add. Process. Search. Recall.
         </h2>
+        <p className="mt-4 max-w-xl text-base leading-7 landing-muted">
+          The same pipeline every memory travels through, end to end.
+        </p>
       </div>
-      <div className="pipeline-shell mt-12">
-        <div className="pipeline-line hidden md:block" />
-        <div className="pipeline-orb hidden md:block" />
+
+      <div className="pipeline-shell mt-16" ref={sectionRef}>
+        <svg
+          aria-hidden="true"
+          className="pipeline-beam-svg hidden md:block"
+          preserveAspectRatio="none"
+          viewBox="0 0 100 4"
+        >
+          <defs>
+            <linearGradient id="pipelineGradient" x1="0" x2="100%" y1="0" y2="0">
+              <stop offset="0%" stopColor="var(--accent-signature)" stopOpacity="0" />
+              <stop offset="45%" stopColor="var(--accent-cyan)" />
+              <stop offset="100%" stopColor="var(--accent-warm)" stopOpacity="0.9" />
+            </linearGradient>
+          </defs>
+          <path
+            className="pipeline-beam-track"
+            d="M 6 2 L 94 2"
+            fill="none"
+            strokeWidth="0.35"
+            vectorEffect="non-scaling-stroke"
+          />
+          <motion.path
+            d="M 6 2 L 94 2"
+            fill="none"
+            stroke="url(#pipelineGradient)"
+            strokeLinecap="round"
+            strokeWidth="0.6"
+            style={{ pathLength: beamProgress }}
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
+
         <motion.div
           className="grid gap-4 md:grid-cols-4"
           initial="hidden"
-          whileInView="show"
-          viewport={{ once: true }}
           variants={containerVariants}
+          viewport={{ once: true }}
+          whileInView="show"
         >
-          {pipeline.map((step) => {
-            const Icon = step.icon;
-            return (
-              <motion.article className="landing-card relative rounded-2xl p-6" key={step.label} variants={itemVariants}>
-                <div className="relative z-10 flex size-14 items-center justify-center rounded-2xl border bg-background text-primary">
-                  <Icon className="size-6" />
-                </div>
-                <h3 className="mt-8 text-xl font-semibold">{step.label}</h3>
-                <p className="mt-3 text-sm leading-7 landing-muted">{step.body}</p>
-              </motion.article>
-            );
-          })}
+          {pipeline.map((step, index) => (
+            <PipelineNode index={index} key={step.label} progress={beamProgress} step={step} />
+          ))}
         </motion.div>
       </div>
     </section>
+  );
+}
+
+function PipelineNode({
+  step,
+  index,
+  progress,
+}: {
+  step: (typeof pipeline)[number];
+  index: number;
+  progress: MotionValue<number>;
+}) {
+  const Icon = step.icon;
+  const start = index / pipeline.length;
+  const settle = start + 0.16;
+  const glow = useTransform(progress, [Math.max(start - 0.06, 0), settle], [0, 1]);
+  const iconGlow = useTransform(
+    glow,
+    (value) =>
+      `0 0 ${Math.round(28 * value)}px color-mix(in srgb, var(--accent-cyan) ${Math.round(60 * value)}%, transparent)`
+  );
+  const iconBorder = useTransform(
+    glow,
+    (value) => `color-mix(in srgb, var(--accent-cyan) ${Math.round(70 * value)}%, var(--border-strong))`
+  );
+
+  return (
+    <motion.article className="landing-card relative rounded-2xl p-6" variants={itemVariants}>
+      <p className="font-mono text-xs landing-faint">0{index + 1}</p>
+      <motion.div
+        className="relative z-10 mt-4 flex size-14 items-center justify-center rounded-2xl border bg-background text-primary"
+        style={{ boxShadow: iconGlow, borderColor: iconBorder }}
+      >
+        <Icon className="size-6" />
+      </motion.div>
+      <h3 className="mt-6 text-xl font-semibold">{step.label}</h3>
+      <p className="mt-3 text-sm leading-7 landing-muted">{step.body}</p>
+    </motion.article>
   );
 }
 
@@ -531,10 +605,7 @@ function LandingFooter() {
       <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-[1fr_auto_auto_auto] lg:px-8">
         <div>
           <div className="flex items-center gap-3 font-semibold">
-            <span className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-              M
-            </span>
-            MEMORA
+            <span className="memora-wordmark text-lg">Memora</span>
           </div>
           <p className="mt-3 text-sm landing-muted">Your second memory.</p>
           <div className="mt-4">

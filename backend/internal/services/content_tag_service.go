@@ -1,6 +1,8 @@
 package services
 
 import (
+	"time"
+
 	"memora-backend/internal/models"
 	"memora-backend/internal/repository"
 )
@@ -147,11 +149,32 @@ func (s *ContentTagService) resolveTagsForContent(userID string, tagIDs []string
 		}
 
 		if tag.UserID != userID {
-			return nil, ErrValidation
+			// Cross-user tag reference: resolve or create a tag for this user with the same name
+			existingTag, err := s.tagRepo.GetByUserIDAndName(userID, tag.Name)
+			if err == nil {
+				tag = existingTag
+			} else {
+				createdTag, err := s.tagRepo.Create(models.Tag{
+					UserID:    userID,
+					Name:      tag.Name,
+					CreatedAt: time.Now().UTC(),
+				})
+				if err == nil {
+					tag = createdTag
+				} else {
+					if existingTag, err := s.tagRepo.GetByUserIDAndName(userID, tag.Name); err == nil {
+						tag = existingTag
+					} else {
+						continue
+					}
+				}
+			}
 		}
 
-		seen[tagID] = true
-		tags = append(tags, tag)
+		if !seen[tag.ID] {
+			seen[tag.ID] = true
+			tags = append(tags, tag)
+		}
 	}
 
 	return tags, nil

@@ -97,6 +97,34 @@ func chunkTranscript(result IngestionResult, config ChunkConfig) []ContentChunk 
 	}
 	flush()
 
+	if result.SourceType == SourceTypeReel && len(chunks) > 1 {
+		fullText := result.CleanText
+		if fullText != "" {
+			start := result.Transcript[0].StartSeconds
+			end := result.Transcript[len(result.Transcript)-1].EndSeconds
+			fullMetadata := copyMetadata(result.Metadata)
+			if fullMetadata == nil {
+				fullMetadata = make(map[string]string)
+			}
+			fullMetadata["chunk_scope"] = "full_reel"
+			fullChunk := ContentChunk{
+				Index:        0,
+				Text:         fullText,
+				SourceType:   result.SourceType,
+				StartSeconds: &start,
+				EndSeconds:   &end,
+				Metadata:     fullMetadata,
+			}
+			allChunks := make([]ContentChunk, 0, len(chunks)+1)
+			allChunks = append(allChunks, fullChunk)
+			for i, c := range chunks {
+				c.Index = i + 1
+				allChunks = append(allChunks, c)
+			}
+			return allChunks
+		}
+	}
+
 	return chunks
 }
 

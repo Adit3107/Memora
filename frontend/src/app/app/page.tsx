@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { AIPlaygroundBanner } from "@/components/dashboard/ai-playground-banner";
 import { ContentTypeCard } from "@/components/dashboard/content-type-card";
 import { LiveDashboard } from "@/components/dashboard/live-dashboard";
 import { QuickActionCard } from "@/components/dashboard/quick-action-card";
@@ -57,6 +58,9 @@ export default function AppHomePage() {
           Ctrl K
         </kbd>
       </Link>
+
+      {/* AI Playground Feature on Hold - Attractive Theme-Relevant Launching Soon Banner */}
+      <AIPlaygroundBanner />
 
       <LiveDashboard />
 

@@ -55,26 +55,32 @@ export function ContentDetail({ item }: ContentDetailProps) {
           <p className="mt-2 text-base font-semibold">{item.metadata}</p>
         </div>
         <div className="rounded-md border bg-card p-4 shadow-sm">
-          <p className="text-sm text-muted-foreground">Source</p>
+          <p className="text-sm text-muted-foreground">Link</p>
           {item.sourceUrl ? (
             <Link
-              className="mt-2 block break-all text-base font-semibold hover:underline"
+              className="mt-2 block break-all text-base font-semibold text-primary underline-offset-4 hover:underline"
               href={item.sourceUrl}
+              rel="noreferrer"
+              target="_blank"
             >
-              {item.source}
+              {item.sourceUrl}
             </Link>
           ) : (
-            <p className="mt-2 text-base font-semibold">{item.source}</p>
+            <p className="mt-2 text-base font-semibold text-muted-foreground">
+              No link available
+            </p>
           )}
         </div>
       </section>
 
-      <section className="rounded-md border bg-card p-5 shadow-sm">
-        <h2 className="text-lg font-semibold">Tags</h2>
-        <div className="mt-3">
-          <TagList tags={item.tags} />
-        </div>
-      </section>
+      {item.tags.length > 0 ? (
+        <section className="rounded-md border bg-card p-5 shadow-sm">
+          <h2 className="text-lg font-semibold">Tags</h2>
+          <div className="mt-3">
+            <TagList tags={item.tags} />
+          </div>
+        </section>
+      ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <section className="rounded-md border bg-card p-5 shadow-sm">

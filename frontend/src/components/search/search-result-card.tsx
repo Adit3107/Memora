@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { FileText, Image, Newspaper, Video } from "lucide-react";
+import { Clock, FileText, Image, Newspaper, Video } from "lucide-react";
 
 import { TagList } from "@/components/content/tag-list";
 import { contentTypeLabels } from "@/data/content";
+import { FacebookIcon, InstagramIcon } from "@/components/ui/platform-icons";
 import type { SearchResult } from "@/lib/api";
 
 type SearchResultCardProps = {
@@ -10,9 +11,12 @@ type SearchResultCardProps = {
 };
 
 export function SearchResultCard({ item }: SearchResultCardProps) {
-  const Icon = iconForType[item.content_type];
-  const href = `/app/library/${item.content_id}?chunk=${item.chunk_id}`;
-  const sourceLabel = sourceLabelForResult(item);
+  const Icon = iconForType[item.content_type] || Video;
+  const href = `/app/library/${item.content_id}`;
+  const thumbnail = item.thumbnail_url || youtubeThumbnailFromURL(item.source_url);
+  const timeLabel = formatTimestamp(item.start_seconds, item.end_seconds);
+  const platform = detectPlatformForResult(item);
+  const creator = item.metadata?.uploader;
 
   return (
     <Link
@@ -20,12 +24,12 @@ export function SearchResultCard({ item }: SearchResultCardProps) {
       href={href}
     >
       <article className="grid gap-4 sm:grid-cols-[auto_1fr_auto]">
-        {item.thumbnail_url ? (
+        {thumbnail ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             alt=""
             className="h-16 w-24 rounded-md border object-cover"
-            src={item.thumbnail_url}
+            src={thumbnail}
           />
         ) : (
           <div className="flex size-10 items-center justify-center rounded-md border bg-background">
@@ -34,31 +38,48 @@ export function SearchResultCard({ item }: SearchResultCardProps) {
         )}
         <div className="min-w-0 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-md bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground">
-              {contentTypeLabels[item.content_type]}
-            </span>
-            <span className="text-xs text-muted-foreground">{sourceLabel}</span>
-            <span className="text-xs text-muted-foreground">
-              chunk {item.chunk_index + 1}
-            </span>
+            {platform === "instagram" ? (
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-pink-500/30 bg-pink-500/10 px-2 py-0.5 text-xs font-medium text-pink-400">
+                <InstagramIcon className="size-3" />
+                <span>Instagram Reel</span>
+              </span>
+            ) : platform === "facebook" ? (
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-400">
+                <FacebookIcon className="size-3" />
+                <span>Facebook Reel</span>
+              </span>
+            ) : (
+              <>
+                <span className="rounded-md bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground">
+                  {contentTypeLabels[item.content_type]}
+                </span>
+                <span className="text-xs text-muted-foreground">{sourceLabelForResult(item)}</span>
+              </>
+            )}
+
+            {creator ? (
+              <span className="text-xs font-medium text-muted-foreground">
+                @{creator.replace(/^@/, "")}
+              </span>
+            ) : null}
+
+            {timeLabel ? (
+              <span className="inline-flex items-center gap-1 rounded-md border bg-muted/60 px-2 py-0.5 font-mono text-xs text-muted-foreground">
+                <Clock className="size-3" />
+                <span>{timeLabel}</span>
+              </span>
+            ) : null}
           </div>
           <div>
             <h2 className="text-base font-semibold leading-6">{item.title}</h2>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
               {item.text}
             </p>
-            <p className="mt-2 text-xs leading-5 text-muted-foreground">
-              Returned from {sourceReference(item)} because this stored chunk matched
-              the search query.
-            </p>
           </div>
           <TagList tags={item.tags} />
         </div>
         <div className="flex flex-wrap gap-2 sm:block sm:text-right">
           <p className="text-sm font-medium">{scoreLabel(item.score)}</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {sourceReference(item)}
-          </p>
         </div>
       </article>
     </Link>
@@ -76,17 +97,32 @@ function scoreLabel(score: number) {
   return `${Math.round(score * 100)}% match`;
 }
 
-function sourceReference(item: SearchResult) {
-  if (item.start_seconds !== undefined) {
-    return `starts at ${formatSeconds(item.start_seconds)}`;
+function detectPlatformForResult(item: SearchResult): "instagram" | "facebook" | "youtube" | null {
+  if (
+    item.metadata?.provider === "instagram" ||
+    item.metadata?.source_platform === "instagram" ||
+    item.source_url?.includes("instagram.com")
+  ) {
+    return "instagram";
   }
-  if (item.page_index !== undefined) {
-    return `page ${item.page_index}`;
+  if (
+    item.metadata?.provider === "facebook" ||
+    item.metadata?.source_platform === "facebook" ||
+    item.source_url?.includes("facebook.com") ||
+    item.source_url?.includes("fb.watch")
+  ) {
+    return "facebook";
   }
-  return item.source_type;
+  if (item.source_url?.includes("youtube.com") || item.source_url?.includes("youtu.be")) {
+    return "youtube";
+  }
+  return null;
 }
 
 function sourceLabelForResult(item: SearchResult) {
+  if (item.source_type === "reel") {
+    return "Reel";
+  }
   if (item.source_type === "video") {
     return "Video";
   }
@@ -96,8 +132,28 @@ function sourceLabelForResult(item: SearchResult) {
   return item.source_type;
 }
 
-function formatSeconds(seconds: number) {
-  const minutes = Math.floor(seconds / 60);
-  const remaining = Math.floor(seconds % 60);
-  return `${minutes}:${remaining.toString().padStart(2, "0")}`;
+function formatTimestamp(start?: number, end?: number): string | null {
+  if (start === undefined || start === null) {
+    return null;
+  }
+  const formatSec = (s: number) => {
+    const mins = Math.floor(s / 60);
+    const secs = Math.floor(s % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+  if (end !== undefined && end !== null && end > start) {
+    return `${formatSec(start)} - ${formatSec(end)}`;
+  }
+  return formatSec(start);
+}
+
+function youtubeThumbnailFromURL(url?: string) {
+  if (!url) {
+    return undefined;
+  }
+  const videoID =
+    url.match(/[?&]v=([^&]+)/)?.[1] ??
+    url.match(/youtu\.be\/([^?&]+)/)?.[1] ??
+    url.match(/shorts\/([^?&]+)/)?.[1];
+  return videoID ? `https://img.youtube.com/vi/${videoID}/hqdefault.jpg` : undefined;
 }

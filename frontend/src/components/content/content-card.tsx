@@ -5,6 +5,7 @@ import { contentTypeLabels } from "@/data/content";
 import type { SavedContentItem } from "@/types/content";
 
 import { TagList } from "./tag-list";
+import { FacebookIcon, InstagramIcon } from "@/components/ui/platform-icons";
 
 type ContentCardProps = {
   item: SavedContentItem;
@@ -55,10 +56,29 @@ export function ContentCard({ item }: ContentCardProps) {
 
         <div className="flex flex-1 flex-col p-4">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-md bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground">
-              {contentTypeLabels[item.type]}
-            </span>
-            <span className="text-xs text-muted-foreground">{item.source}</span>
+            {item.platform === "instagram" || item.source === "Instagram Reel" ? (
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-pink-500/30 bg-pink-500/10 px-2 py-1 text-xs font-medium text-pink-400">
+                <InstagramIcon className="size-3.5" />
+                <span>Instagram Reel</span>
+              </span>
+            ) : item.platform === "facebook" || item.source === "Facebook Reel" ? (
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-blue-500/30 bg-blue-500/10 px-2 py-1 text-xs font-medium text-blue-400">
+                <FacebookIcon className="size-3.5" />
+                <span>Facebook Reel</span>
+              </span>
+            ) : (
+              <>
+                <span className="rounded-md bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground">
+                  {contentTypeLabels[item.type]}
+                </span>
+                <span className="text-xs text-muted-foreground">{item.source}</span>
+              </>
+            )}
+            {item.creator ? (
+              <span className="text-xs font-medium text-muted-foreground">
+                @{item.creator.replace(/^@/, "")}
+              </span>
+            ) : null}
           </div>
 
           <h3 className="mt-3 line-clamp-2 text-base font-semibold leading-6">
@@ -69,6 +89,7 @@ export function ContentCard({ item }: ContentCardProps) {
           </p>
 
           <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            {item.duration ? <span>{item.duration}</span> : null}
             <span>{item.metadata}</span>
             <span>{item.dateLabel}</span>
           </div>

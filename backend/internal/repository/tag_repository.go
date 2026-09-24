@@ -84,6 +84,26 @@ func (r *TagRepository) GetByID(id string) (models.Tag, error) {
 	return tag, nil
 }
 
+func (r *TagRepository) GetByUserIDAndName(userID string, name string) (models.Tag, error) {
+	ctx := context.Background()
+
+	var tag models.Tag
+	err := r.db.QueryRowContext(ctx, `
+		SELECT id, user_id, name, created_at
+		FROM tags
+		WHERE user_id = $1 AND LOWER(name) = LOWER($2)
+		LIMIT 1
+	`, userID, name).Scan(&tag.ID, &tag.UserID, &tag.Name, &tag.CreatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return models.Tag{}, ErrNotFound
+	}
+	if err != nil {
+		return models.Tag{}, err
+	}
+
+	return tag, nil
+}
+
 func (r *TagRepository) Update(id string, tag models.Tag) (models.Tag, error) {
 	ctx := context.Background()
 

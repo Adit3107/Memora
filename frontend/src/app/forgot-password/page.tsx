@@ -8,10 +8,7 @@ export default function ForgotPasswordPage() {
     <main className="memora-landing flex min-h-screen items-center justify-center px-4 py-12">
       <section className="landing-panel landing-shell w-full max-w-md rounded-2xl p-8">
         <Link className="flex items-center gap-3 font-semibold" href="/">
-          <span className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            M
-          </span>
-          MEMORA
+          <span className="memora-wordmark text-2xl">Memora</span>
         </Link>
         <h1 className="mt-10 text-3xl font-semibold">Reset your password</h1>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">
