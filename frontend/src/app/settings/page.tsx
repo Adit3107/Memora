@@ -1,7 +1,17 @@
+"use client";
+
+import { useUser } from "@clerk/nextjs";
+import Link from "next/link";
+import { ArrowRight, User } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import type { ReactNode } from "react";
 
 export default function SettingsPage() {
+  const { user, isLoaded } = useUser();
+  const displayName = user?.fullName || user?.firstName || "Mindshelf User";
+  const displayEmail = user?.primaryEmailAddress?.emailAddress || "user@mindshelf.app";
+  const initial = user?.firstName?.[0] || user?.fullName?.[0] || "M";
+
   return (
     <div className="space-y-8">
       <div>
@@ -9,20 +19,40 @@ export default function SettingsPage() {
           Settings
         </p>
         <h1 className="mt-2 text-3xl font-semibold tracking-normal">
-          Tune your Memora workspace.
+          Tune your Mindshelf workspace.
         </h1>
       </div>
 
       <section className="grid gap-4 lg:grid-cols-2">
         <SettingsCard title="Account">
-          <div className="flex items-center gap-4">
-            <div className="flex size-12 items-center justify-center rounded-full bg-primary text-lg font-semibold text-primary-foreground">
-              A
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-4">
+              {user?.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  alt=""
+                  className="size-12 rounded-full border border-border object-cover"
+                  src={user.imageUrl}
+                />
+              ) : (
+                <div className="flex size-12 items-center justify-center rounded-full bg-primary text-lg font-semibold text-primary-foreground">
+                  {initial}
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="font-medium truncate">{displayName}</p>
+                <p className="text-sm text-muted-foreground truncate">{displayEmail}</p>
+              </div>
             </div>
-            <div>
-              <p className="font-medium">Aditya</p>
-              <p className="text-sm text-muted-foreground">demo@memora.local</p>
-            </div>
+
+            <Link
+              className="inline-flex items-center gap-2 rounded-lg border border-border/80 bg-background/60 px-3.5 py-2 text-xs font-medium text-foreground transition hover:bg-accent hover:text-accent-foreground"
+              href="/app/profile"
+            >
+              <User className="size-3.5 text-primary" />
+              <span>Manage full account & security profile</span>
+              <ArrowRight className="ml-auto size-3 text-muted-foreground" />
+            </Link>
           </div>
         </SettingsCard>
 
@@ -72,7 +102,7 @@ export default function SettingsPage() {
 
         <SettingsCard title="About">
           <p className="text-sm leading-6 text-muted-foreground">
-            Memora frontend. Phase 6-ready ingestion and retrieval UI.
+            Mindshelf frontend. Intelligent video and document second memory.
           </p>
         </SettingsCard>
       </section>

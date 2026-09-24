@@ -1,11 +1,11 @@
 "use client";
 
 import { Search, X } from "lucide-react";
+import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 
 import {
-  MEMORA_DEMO_USER_ID,
   searchMemora,
   type SearchResult,
 } from "@/lib/api";
@@ -19,6 +19,7 @@ export function GlobalSearchDialog({
   open,
   onOpenChange,
 }: GlobalSearchDialogProps) {
+  const { user } = useUser();
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -55,7 +56,7 @@ export function GlobalSearchDialog({
     setError("");
     try {
       const response = await searchMemora({
-        user_id: MEMORA_DEMO_USER_ID,
+        user_id: user?.id ?? "",
         query: trimmed,
         mode: "hybrid",
         limit: 6,
@@ -86,7 +87,7 @@ export function GlobalSearchDialog({
         onClick={() => onOpenChange(false)}
         type="button"
       />
-      <div className="relative mx-auto max-w-2xl overflow-hidden rounded-2xl border bg-card shadow-2xl">
+      <div className="relative mx-auto max-h-[calc(100vh-2rem)] max-w-2xl overflow-hidden rounded-2xl border bg-card shadow-2xl">
         <div className="flex items-center justify-between border-b px-4 py-3">
           <div>
             <h2 className="text-sm font-semibold">Search your memory</h2>
@@ -103,10 +104,10 @@ export function GlobalSearchDialog({
         </div>
 
         <form className="border-b p-4" onSubmit={runSearch}>
-          <div className="flex items-center gap-3 rounded-md border bg-background px-3 py-2">
+          <div className="flex flex-col gap-2 rounded-md border bg-background p-2 sm:flex-row sm:items-center sm:gap-3 sm:px-3">
             <Search className="size-4 text-muted-foreground" />
             <input
-              className="h-10 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              className="h-10 min-w-0 flex-1 bg-transparent px-1 text-sm outline-none placeholder:text-muted-foreground"
               onChange={(event) => setQuery(event.target.value)}
               placeholder="kafka consumer groups"
               ref={inputRef}

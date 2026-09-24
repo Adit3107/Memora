@@ -8,18 +8,22 @@ import {
   Home,
   Image,
   Library,
+  MoreHorizontal,
   Newspaper,
   Plus,
   Search,
   Settings,
+  User,
   Video,
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 
-import { spaces } from "@/data/content";
+import { deleteSpace, listSpaces, updateSpace, type BackendSpace } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
 
 import { ThemeToggle } from "../theme/theme-toggle";
 import { Brand } from "./brand";
@@ -55,7 +59,7 @@ export function Sidebar({
     <>
       <aside
         className={cn(
-          "hidden min-h-screen shrink-0 border-r bg-sidebar text-sidebar-foreground transition-[width] duration-200 lg:flex lg:flex-col",
+          "relative hidden min-h-screen shrink-0 border-r bg-sidebar text-sidebar-foreground transition-[width] duration-200 lg:flex lg:flex-col",
           collapsed ? "w-20" : "w-72"
         )}
       >
@@ -99,18 +103,32 @@ function SidebarContent({
 }) {
   return (
     <>
-      <div className="flex items-center justify-between border-b px-4 py-4">
+      <div
+        className={cn(
+          "flex items-center border-b px-4 py-4",
+          collapsed ? "justify-center" : "justify-between"
+        )}
+      >
         <Brand appHref collapsed={collapsed} />
-        <button
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="inline-flex size-8 items-center justify-center rounded-md border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-          onClick={onToggle}
-          type="button"
-        >
-          <ChevronLeft
-            className={cn("size-4 transition-transform", collapsed && "rotate-180")}
-          />
-        </button>
+        {!collapsed ? (
+          <button
+            aria-label="Collapse sidebar"
+            className="inline-flex size-8 items-center justify-center rounded-md border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            onClick={onToggle}
+            type="button"
+          >
+            <ChevronLeft className="size-4" />
+          </button>
+        ) : (
+          <button
+            aria-label="Expand sidebar"
+            className="absolute right-0 top-[1.15rem] translate-x-1/2 inline-flex size-6 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+            onClick={onToggle}
+            type="button"
+          >
+            <ChevronLeft className="size-3 rotate-180" />
+          </button>
+        )}
       </div>
       <SidebarNav collapsed={collapsed} />
     </>
@@ -124,6 +142,57 @@ function SidebarNav({
   collapsed: boolean;
   onNavigate?: () => void;
 }) {
+  const { user, isLoaded } = useUser();
+  const router = useRouter();
+  const [spaces, setSpaces] = useState<BackendSpace[]>([]);
+  const displayName = user?.fullName || user?.firstName || "My Profile";
+  const displayEmail = user?.primaryEmailAddress?.emailAddress || "Signed in";
+  const initial = user?.firstName?.[0] || user?.fullName?.[0] || "U";
+
+  async function renameSpace(space: BackendSpace) {
+    if (!user?.id) return;
+    const name = window.prompt("Rename space", space.name)?.trim();
+    if (!name || name === space.name) return;
+    try {
+      await updateSpace(space.id, {
+        user_id: user.id,
+        name,
+        description: space.description,
+      });
+      window.dispatchEvent(new Event("mindshelf:spaces-changed"));
+    } catch {
+      window.alert("Space could not be renamed.");
+    }
+  }
+
+  async function removeSpace(space: BackendSpace) {
+    if (!window.confirm(`Delete "${space.name}" and its saved content?`)) return;
+    try {
+      await deleteSpace(space.id);
+      window.dispatchEvent(new Event("mindshelf:spaces-changed"));
+      if (window.location.pathname === `/app/spaces/${space.id}`) {
+        router.push("/app/spaces");
+      }
+    } catch {
+      window.alert("Space could not be deleted.");
+    }
+  }
+
+  useEffect(() => {
+    if (!isLoaded || !user?.id) return;
+    const userId = user.id;
+
+    function loadUserSpaces() {
+      void listSpaces(userId)
+        .then(setSpaces)
+        .catch(() => setSpaces([]));
+    }
+
+    loadUserSpaces();
+    window.addEventListener("mindshelf:spaces-changed", loadUserSpaces);
+    return () => window.removeEventListener("mindshelf:spaces-changed", loadUserSpaces);
+  }, [isLoaded, user?.id]);
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-4" aria-label="Main navigation">
@@ -155,15 +224,44 @@ function SidebarNav({
             title="Create Space"
             href="/app/spaces"
           />
-          {spaces.slice(0, 4).map((space) => (
-            <SidebarItem
-              collapsed={collapsed}
-              icon={BookOpen}
-              key={space.slug}
-              onNavigate={onNavigate}
-              title={space.name}
-              href={`/app/spaces/${space.slug}`}
-            />
+          {spaces.map((space) => (
+            <div className="group/space flex items-center gap-1" key={space.id}>
+              <div className="min-w-0 flex-1">
+                <SidebarItem
+                  collapsed={collapsed}
+                  icon={BookOpen}
+                  onNavigate={onNavigate}
+                  title={space.name}
+                  href={`/app/spaces/${space.id}`}
+                />
+              </div>
+              {!collapsed ? (
+                <details className="relative shrink-0">
+                  <summary
+                    aria-label={`Actions for ${space.name}`}
+                    className="flex size-8 cursor-pointer list-none items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground [&::-webkit-details-marker]:hidden"
+                  >
+                    <MoreHorizontal className="size-4" />
+                  </summary>
+                  <div className="absolute right-0 top-9 z-30 grid min-w-32 gap-1 rounded-md border bg-popover p-1 shadow-lg">
+                    <button
+                      className="rounded px-2 py-1.5 text-left text-xs hover:bg-accent"
+                      onClick={() => void renameSpace(space)}
+                      type="button"
+                    >
+                      Rename
+                    </button>
+                    <button
+                      className="rounded px-2 py-1.5 text-left text-xs text-destructive hover:bg-destructive/10"
+                      onClick={() => void removeSpace(space)}
+                      type="button"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </details>
+              ) : null}
+            </div>
           ))}
         </div>
       </nav>
@@ -171,28 +269,51 @@ function SidebarNav({
       <div className="border-t px-3 py-4">
         <SidebarItem
           collapsed={collapsed}
+          href="/app/profile"
+          icon={User}
+          onNavigate={onNavigate}
+          title="Profile"
+        />
+        <SidebarItem
+          collapsed={collapsed}
           href="/app/settings"
           icon={Settings}
           onNavigate={onNavigate}
           title="Settings"
         />
-        <div className="mt-3 flex items-center justify-between gap-2 rounded-md border bg-background px-3 py-3">
+        <div className="mt-3 flex items-center justify-between gap-2 rounded-md border bg-background px-3 py-2.5">
           <ThemeToggle />
           {!collapsed ? (
             <span className="text-xs text-muted-foreground">Theme</span>
           ) : null}
         </div>
-        <div className="mt-3 flex items-center gap-3 rounded-md border bg-background px-3 py-3">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
-            A
-          </div>
+        <Link
+          className="group mt-3 flex items-center gap-3 rounded-lg border bg-background px-3 py-2.5 transition-all hover:border-primary/40 hover:bg-accent/40"
+          href="/app/profile"
+          onClick={onNavigate}
+          title={collapsed ? displayName : undefined}
+        >
+          {user?.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              alt=""
+              className="size-8 shrink-0 rounded-full border border-border object-cover"
+              src={user.imageUrl}
+            />
+          ) : (
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
+              {initial}
+            </div>
+          )}
           {!collapsed ? (
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium">Aditya</p>
-              <p className="truncate text-xs text-muted-foreground">Local demo</p>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-foreground group-hover:text-primary">
+                {displayName}
+              </p>
+              <p className="truncate text-xs text-muted-foreground">{displayEmail}</p>
             </div>
           ) : null}
-        </div>
+        </Link>
       </div>
     </div>
   );

@@ -75,3 +75,19 @@ func (s *UserService) Update(id string, input UpdateUserInput) (models.User, err
 func (s *UserService) Delete(id string) error {
 	return s.repo.Delete(id)
 }
+
+func (s *UserService) Sync(id, name, email string) (models.User, error) {
+	id = strings.TrimSpace(id)
+	name = strings.TrimSpace(name)
+	email = strings.TrimSpace(email)
+	if id == "" {
+		return models.User{}, ErrValidation
+	}
+	if name == "" {
+		name = "Mindshelf User"
+	}
+	if email == "" {
+		email = id + "@mindshelf.app"
+	}
+	return s.repo.Upsert(id, name, email)
+}

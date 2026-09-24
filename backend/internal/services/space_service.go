@@ -49,6 +49,10 @@ func (s *SpaceService) List() ([]models.Space, error) {
 	return s.repo.List()
 }
 
+func (s *SpaceService) ListByUserID(userID string) ([]models.Space, error) {
+	return s.repo.ListByUserID(userID)
+}
+
 func (s *SpaceService) GetByID(id string) (models.Space, error) {
 	return s.repo.GetByID(id)
 }

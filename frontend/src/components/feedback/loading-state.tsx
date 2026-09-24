@@ -4,7 +4,7 @@ type LoadingStateProps = {
 };
 
 export function LoadingState({
-  title = "Loading Memora",
+  title = "Loading Mindshelf",
   description = "Preparing the interface.",
 }: LoadingStateProps) {
   return (

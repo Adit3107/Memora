@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
+import { useUser } from "@clerk/nextjs";
 
 import { GlobalSearchDialog } from "@/components/search/global-search-dialog";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
@@ -18,14 +19,15 @@ type AppShellProps = {
   children: ReactNode;
 };
 
-const publicRoutes = ["/", "/login", "/signup", "/forgot-password"];
+const publicRoutes = ["/", "/login", "/signup", "/forgot-password", "/sso-callback"];
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
+  const { user } = useUser();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const isPublicRoute = publicRoutes.includes(pathname);
+  const isPublicRoute = publicRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`));
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -92,10 +94,20 @@ export function AppShell({ children }: AppShellProps) {
 
               <Link
                 aria-label="Profile"
-                className="flex size-9 items-center justify-center rounded-full border bg-card text-sm font-semibold"
-                href="/app/settings"
+                className="flex size-9 items-center justify-center overflow-hidden rounded-full border bg-card text-sm font-semibold transition-transform hover:scale-105"
+                href="/app/profile"
+                title={user?.fullName || user?.firstName || "Profile"}
               >
-                A
+                {user?.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    alt="Profile"
+                    className="size-full object-cover"
+                    src={user.imageUrl}
+                  />
+                ) : (
+                  <span>{user?.firstName?.[0] || user?.fullName?.[0] || "U"}</span>
+                )}
               </Link>
             </div>
           </header>
@@ -113,6 +125,9 @@ export function AppShell({ children }: AppShellProps) {
 }
 
 function titleForPath(pathname: string) {
+  if (pathname.includes("/profile")) {
+    return "Profile";
+  }
   if (pathname.includes("/search")) {
     return "Search";
   }

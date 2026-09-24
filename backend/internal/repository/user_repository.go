@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 
 	"memora-backend/internal/models"
 )
@@ -134,6 +135,64 @@ func (r *UserRepository) Delete(id string) error {
 	}
 
 	return nil
+}
+
+func (r *UserRepository) Upsert(id, name, email string) (models.User, error) {
+	ctx := context.Background()
+	now := time.Now().UTC()
+
+	var user models.User
+	err := r.db.QueryRowContext(ctx, `
+		SELECT id, name, email, created_at, updated_at
+		FROM users
+		WHERE id = $1
+	`, id).Scan(&user.ID, &user.Name, &user.Email, &user.CreatedAt, &user.UpdatedAt)
+
+	if err == nil {
+		if user.Name != name || user.Email != email {
+			user.Name = name
+			user.Email = email
+			user.UpdatedAt = now
+			return r.Update(id, user)
+		}
+		return user, nil
+	}
+
+	err = r.db.QueryRowContext(ctx, `
+		SELECT id, name, email, created_at, updated_at
+		FROM users
+		WHERE email = $1
+	`, email).Scan(&user.ID, &user.Name, &user.Email, &user.CreatedAt, &user.UpdatedAt)
+
+	if err == nil {
+		_, updateErr := r.db.ExecContext(ctx, `
+			UPDATE users SET id = $1, name = $2, updated_at = $3 WHERE email = $4
+		`, id, name, now, email)
+		if updateErr == nil {
+			user.ID = id
+			user.Name = name
+			user.UpdatedAt = now
+			return user, nil
+		}
+		return user, nil
+	}
+
+	err = r.db.QueryRowContext(ctx, `
+		INSERT INTO users (id, name, email, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, name, email, created_at, updated_at
+	`, id, name, email, now, now).Scan(
+		&user.ID,
+		&user.Name,
+		&user.Email,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+	if err != nil {
+		return models.User{}, err
+	}
+
+	return user, nil
 }
 
 // Why this file exists:

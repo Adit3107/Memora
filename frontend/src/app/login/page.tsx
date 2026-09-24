@@ -1,107 +1,274 @@
-import { ArrowRight, Mail } from "lucide-react";
-import Link from "next/link";
-import type { ReactNode } from "react";
+"use client";
 
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { useSignIn } from "@clerk/nextjs/legacy";
+import {
+  AlertCircle,
+  ArrowRight,
+  Eye,
+  EyeOff,
+  Lock,
+  Mail,
+  RefreshCw,
+  Sparkles,
+} from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState, type FormEvent } from "react";
 
 export default function LoginPage() {
+  const { isLoaded, signIn, setActive } = useSignIn();
+  const router = useRouter();
+
+  const [emailAddress, setEmailAddress] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSignIn(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!isLoaded) return;
+    setError("");
+    setLoading(true);
+
+    try {
+      const result = await signIn.create({
+        identifier: emailAddress.trim(),
+        password,
+      });
+
+      if (result.status === "complete") {
+        await setActive({ session: result.createdSessionId });
+        router.push("/app");
+      } else {
+        // If additional factors like email verification code are required
+        setError(`Additional factor required: ${result.status}. Please check your email.`);
+      }
+    } catch (err: unknown) {
+      const clerkErr = err as { errors?: Array<{ message: string }> };
+      setError(
+        clerkErr.errors?.[0]?.message ||
+          "Invalid email or password. Please verify your credentials."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleGoogleSignIn() {
+    if (!isLoaded || !signIn) return;
+    void signIn.authenticateWithRedirect({
+      strategy: "oauth_google",
+      redirectUrl: "/sso-callback",
+      redirectUrlComplete: "/app",
+    });
+  }
+
   return (
-    <AuthShell
-      asideTitle="Your second memory."
-      asideText="Save anything. Memora understands it. Find it when you need it."
-    >
-      <div className="space-y-2">
-        <h1 className="text-3xl font-semibold">Welcome back</h1>
-        <p className="text-sm text-muted-foreground">Continue your memory.</p>
-      </div>
+    <main className="memora-landing relative min-h-screen overflow-hidden bg-background">
+      {/* Decorative ambient background glows */}
+      <div className="pointer-events-none absolute -left-40 -top-40 size-[500px] rounded-full bg-primary/10 blur-[130px]" />
+      <div className="pointer-events-none absolute -bottom-40 -right-40 size-[500px] rounded-full bg-primary/15 blur-[140px]" />
 
-      <form className="mt-8 space-y-4">
-        <AuthInput label="Email" type="email" />
-        <AuthInput label="Password" type="password" />
-        <Link className={cn(buttonVariants({ variant: "default" }), "h-10 w-full")} href="/app">
-          Sign in
-          <ArrowRight className="size-4" />
-        </Link>
-      </form>
+      <div className="relative mx-auto grid min-h-screen max-w-7xl items-center p-4 sm:p-6 lg:grid-cols-[1.1fr_0.9fr] lg:p-12">
+        {/* Left Column: Feature presentation */}
+        <section className="hidden flex-col justify-between py-12 pr-12 lg:flex">
+          <div>
+            <Link className="inline-flex items-center gap-3 font-semibold" href="/">
+              <span className="memora-wordmark text-2xl tracking-tight text-foreground">
+                Mindshelf
+              </span>
+              <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                v2.0
+              </span>
+            </Link>
 
-      <div className="mt-5 flex items-center justify-between text-sm">
-        <Link className="text-muted-foreground hover:text-foreground" href="/forgot-password">
-          Forgot password?
-        </Link>
-      </div>
-
-      <div className="my-8 flex items-center gap-3 text-xs uppercase text-muted-foreground">
-        <span className="h-px flex-1 bg-border" />
-        OR
-        <span className="h-px flex-1 bg-border" />
-      </div>
-
-      <Link className={cn(buttonVariants({ variant: "outline" }), "h-10 w-full")} href="/app">
-        <Mail className="size-4" />
-        Continue with Google
-      </Link>
-
-      <Link className={cn(buttonVariants({ variant: "secondary" }), "mt-3 h-10 w-full")} href="/app">
-        Continue as Demo User
-      </Link>
-
-      <p className="mt-8 text-center text-sm text-muted-foreground">
-        Do not have an account?{" "}
-        <Link className="font-medium text-foreground hover:underline" href="/signup">
-          Create one
-        </Link>
-      </p>
-    </AuthShell>
-  );
-}
-
-function AuthShell({
-  asideText,
-  asideTitle,
-  children,
-}: {
-  asideText: string;
-  asideTitle: string;
-  children: ReactNode;
-}) {
-  return (
-    <main className="memora-landing grid min-h-screen lg:grid-cols-[1.05fr_0.95fr]">
-      <section className="landing-shell hidden border-r bg-card/70 p-10 backdrop-blur lg:flex lg:flex-col lg:justify-between">
-        <Link className="flex items-center gap-3 font-semibold" href="/">
-          <span className="memora-wordmark text-2xl">Memora</span>
-        </Link>
-        <div className="max-w-lg">
-          <div className="mb-8 grid grid-cols-2 gap-3">
-            {["Videos", "Docs", "Search", "Spaces"].map((item) => (
-              <div className="rounded-lg border bg-background p-5 text-sm font-medium" key={item}>
-                {item}
+            <div className="mt-16 max-w-lg space-y-5">
+              <div className="inline-flex items-center gap-2 rounded-full border border-border/80 bg-card/60 px-3.5 py-1 text-xs font-medium backdrop-blur">
+                <Sparkles className="size-3.5 text-primary" />
+                <span>Save anything. Mindshelf understands it.</span>
               </div>
-            ))}
+              <h1 className="font-display text-5xl font-bold leading-[1.15] tracking-tight text-foreground">
+                Welcome back to your intelligent second memory.
+              </h1>
+              <p className="text-base leading-relaxed text-muted-foreground">
+                Access your curated shelf of reels, technical YouTube guides, and research
+                documents with instant semantic search and Gemini summaries.
+              </p>
+            </div>
           </div>
-          <h2 className="text-5xl font-semibold tracking-normal">{asideTitle}</h2>
-          <p className="mt-5 text-base leading-8 text-muted-foreground">{asideText}</p>
-        </div>
-        <p className="text-sm text-muted-foreground">MEMORA - Your second memory.</p>
-      </section>
-      <section className="landing-shell flex items-center justify-center px-4 py-12">
-        <div className="landing-panel w-full max-w-md rounded-2xl p-6 sm:p-8">
-          {children}
-        </div>
-      </section>
-    </main>
-  );
-}
 
-function AuthInput({ label, type }: { label: string; type: string }) {
-  return (
-    <label className="space-y-2 text-sm font-medium">
-      {label}
-      <input
-        className="h-11 w-full rounded-md border bg-background px-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
-        placeholder={label}
-        type={type}
-      />
-    </label>
+          <div className="grid max-w-lg grid-cols-2 gap-3.5 pt-10">
+            <div className="rounded-xl border border-border/80 bg-card/50 p-4 backdrop-blur-sm">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Semantic Search
+              </p>
+              <p className="mt-1 text-sm font-semibold text-foreground">
+                Hybrid Vector Retrieval
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Find exact sentences across minutes of video.
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/80 bg-card/50 p-4 backdrop-blur-sm">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Instant Sync
+              </p>
+              <p className="mt-1 text-sm font-semibold text-foreground">
+                PostgreSQL + pgvector
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                High concurrency and durable memory.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Right Column: Sign In Modal */}
+        <section className="flex w-full items-center justify-center">
+          <div className="w-full max-w-md rounded-2xl border border-border/80 bg-card/80 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
+            <div className="mb-6 lg:hidden">
+              <Link className="inline-flex items-center gap-2 font-semibold" href="/">
+                <span className="memora-wordmark text-2xl text-foreground">Mindshelf</span>
+              </Link>
+            </div>
+
+            <div className="space-y-1">
+              <h2 className="text-2xl font-bold tracking-tight text-foreground">
+                Welcome back
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Sign in to continue to your workspace.
+              </p>
+            </div>
+
+            {error ? (
+              <div className="mt-4 flex items-start gap-2.5 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+                <AlertCircle className="size-4 shrink-0" />
+                <span>{error}</span>
+              </div>
+            ) : null}
+
+            <form className="mt-6 space-y-4" onSubmit={handleSignIn}>
+              <label className="space-y-1.5 text-xs font-medium text-foreground">
+                Email address
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                  <input
+                    className="h-10 w-full rounded-lg border border-border bg-background/80 pl-9 pr-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    onChange={(e) => setEmailAddress(e.target.value)}
+                    placeholder="you@domain.com"
+                    required
+                    type="email"
+                    value={emailAddress}
+                  />
+                </div>
+              </label>
+
+              <label className="space-y-1.5 text-xs font-medium text-foreground">
+                <div className="flex items-center justify-between">
+                  <span>Password</span>
+                  <Link
+                    className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+                    href="/forgot-password"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                  <input
+                    className="h-10 w-full rounded-lg border border-border bg-background/80 pl-9 pr-10 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    required
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                  />
+                  <button
+                    className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowPassword(!showPassword)}
+                    type="button"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="size-4" />
+                    ) : (
+                      <Eye className="size-4" />
+                    )}
+                  </button>
+                </div>
+              </label>
+
+              <button
+                className="mt-2 flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary font-medium text-primary-foreground shadow-md transition hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
+                disabled={loading}
+                type="submit"
+              >
+                {loading ? (
+                  <RefreshCw className="size-4 animate-spin" />
+                ) : (
+                  <>
+                    <span>Sign in</span>
+                    <ArrowRight className="size-4" />
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="my-6 flex items-center gap-3 text-xs uppercase text-muted-foreground">
+              <span className="h-px flex-1 bg-border" />
+              <span>or</span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
+
+            <div className="space-y-2.5">
+              <button
+                className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border bg-background/80 text-sm font-medium transition hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary/20"
+                onClick={handleGoogleSignIn}
+                type="button"
+              >
+                <svg className="size-4" viewBox="0 0 24 24">
+                  <path
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    fill="#4285F4"
+                  />
+                  <path
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    fill="#34A853"
+                  />
+                  <path
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                    fill="#FBBC05"
+                  />
+                  <path
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                    fill="#EA4335"
+                  />
+                </svg>
+                <span>Continue with Google</span>
+              </button>
+
+              <Link
+                className="flex h-10 w-full items-center justify-center rounded-lg border border-border/70 bg-secondary/40 text-sm font-medium text-foreground transition hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                href="/app"
+              >
+                Continue as Demo User
+              </Link>
+            </div>
+
+            <p className="mt-6 text-center text-xs text-muted-foreground">
+              Don&apos;t have an account?{" "}
+              <Link
+                className="font-semibold text-primary underline-offset-4 hover:underline"
+                href="/signup"
+              >
+                Create one
+              </Link>
+            </p>
+          </div>
+        </section>
+      </div>
+    </main>
   );
 }

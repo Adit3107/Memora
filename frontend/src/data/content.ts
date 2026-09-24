@@ -1,5 +1,3 @@
-import { FileText, Image, Newspaper, Video } from "lucide-react";
-
 import type { ContentType, SavedContentItem, Space } from "@/types/content";
 
 export const spaces: Space[] = [
@@ -65,7 +63,6 @@ export const savedContent: SavedContentItem[] = [
     spaceSlug: "ai-learning",
     spaceName: "AI Learning",
     tags: ["RAG", "VectorDB", "Embeddings"],
-    icon: Video,
     detail: {
       heroLabel: "Video player placeholder",
       previewTitle: "Timestamped transcript preview",
@@ -92,7 +89,6 @@ export const savedContent: SavedContentItem[] = [
     spaceSlug: "ai-learning",
     spaceName: "AI Learning",
     tags: ["RAG", "LLM", "Citations"],
-    icon: FileText,
     detail: {
       heroLabel: "Document preview placeholder",
       previewTitle: "File preview",
@@ -120,7 +116,6 @@ export const savedContent: SavedContentItem[] = [
     spaceSlug: "ai-learning",
     spaceName: "AI Learning",
     tags: ["PostgreSQL", "VectorDB", "Search"],
-    icon: Newspaper,
     detail: {
       heroLabel: "Article preview placeholder",
       previewTitle: "Readable article view",
@@ -147,7 +142,6 @@ export const savedContent: SavedContentItem[] = [
     spaceSlug: "system-design",
     spaceName: "System Design",
     tags: ["Kafka", "Architecture", "Diagram"],
-    icon: Image,
     detail: {
       heroLabel: "Image preview placeholder",
       previewTitle: "Image metadata",
@@ -175,7 +169,6 @@ export const savedContent: SavedContentItem[] = [
     spaceSlug: "go",
     spaceName: "Go",
     tags: ["Go", "Concurrency", "Backend"],
-    icon: Newspaper,
     detail: {
       heroLabel: "Article preview placeholder",
       previewTitle: "Technical article view",
@@ -202,7 +195,6 @@ export const savedContent: SavedContentItem[] = [
     spaceSlug: "dsa",
     spaceName: "DSA",
     tags: ["DSA", "Revision", "Graphs"],
-    icon: FileText,
     detail: {
       heroLabel: "Spreadsheet preview placeholder",
       previewTitle: "Tabular preview",

@@ -5,6 +5,7 @@ import {
   BrainCircuit,
   FileText,
   Image,
+  LayoutDashboard,
   Layers3,
   Play,
   Search,
@@ -21,6 +22,7 @@ import {
   useTransform,
   type MotionValue,
 } from "framer-motion";
+import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { useRef, useState } from "react";
 
@@ -38,7 +40,7 @@ const featureRows: {
 }[] = [
   {
     title: "Save anything worth keeping.",
-    body: "Capture YouTube links, PDFs, DOCX files, articles, and images through the same Memora workflow.",
+    body: "Capture Instagram Reels, Facebook Reels, YouTube videos, PDFs, and articles through the same Mindshelf workflow.",
     icon: UploadCloud,
     items: ["YouTube transcript", "System Design Notes.pdf", "RAG Architecture.docx"],
   },
@@ -128,9 +130,11 @@ const itemVariants = {
 };
 
 export default function LandingPage() {
+  const { isSignedIn } = useUser();
+
   return (
     <main className="memora-landing">
-      <FloatingNavbar />
+      <FloatingNavbar isSignedIn={isSignedIn ?? false} />
       <section className="landing-shell relative mx-auto flex min-h-[calc(100vh-80px)] max-w-7xl flex-col justify-center px-4 py-16 sm:px-6 lg:px-8">
         <AppAlignedAccent />
         <motion.div
@@ -157,31 +161,48 @@ export default function LandingPage() {
             className="mx-auto mt-7 max-w-3xl text-xl font-medium leading-8 sm:text-2xl"
             variants={itemVariants}
           >
-            Memora turns videos, documents, articles, images, and notes into a
-            searchable knowledge space.
+            Mindshelf turns reels, videos, documents, and notes into an
+            intelligent searchable knowledge space.
           </motion.p>
           <motion.div
             className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row"
             variants={itemVariants}
           >
-            <Link
-              className={cn(
-                buttonVariants({ variant: "default", size: "lg" }),
-                "shimmer-button h-12 rounded-full px-6 text-base"
-              )}
-              href="/signup"
-            >
-              <span className="relative z-10 inline-flex items-center gap-2">
-                Get Started Free
-                <ArrowRight className="size-4" />
-              </span>
-            </Link>
-            <Link
-              className="landing-ghost-button inline-flex h-12 items-center rounded-full px-6 text-base font-medium transition-colors hover:bg-accent"
-              href="/login"
-            >
-              Sign in
-            </Link>
+            {isSignedIn ? (
+              <Link
+                className={cn(
+                  buttonVariants({ variant: "default", size: "lg" }),
+                  "shimmer-button h-12 rounded-full px-6 text-base"
+                )}
+                href="/app"
+              >
+                <span className="relative z-10 inline-flex items-center gap-2">
+                  <LayoutDashboard className="size-4" />
+                  Go to Dashboard
+                </span>
+              </Link>
+            ) : (
+              <>
+                <Link
+                  className={cn(
+                    buttonVariants({ variant: "default", size: "lg" }),
+                    "shimmer-button h-12 rounded-full px-6 text-base"
+                  )}
+                  href="/signup"
+                >
+                  <span className="relative z-10 inline-flex items-center gap-2">
+                    Get Started Free
+                    <ArrowRight className="size-4" />
+                  </span>
+                </Link>
+                <Link
+                  className="landing-ghost-button inline-flex h-12 items-center rounded-full px-6 text-base font-medium transition-colors hover:bg-accent"
+                  href="/login"
+                >
+                  Sign in
+                </Link>
+              </>
+            )}
           </motion.div>
           <motion.div
             className="trust-marquee mx-auto mt-7"
@@ -217,7 +238,7 @@ export default function LandingPage() {
   );
 }
 
-function FloatingNavbar() {
+function FloatingNavbar({ isSignedIn }: { isSignedIn: boolean }) {
   const { scrollY } = useScroll();
   const [scrolled, setScrolled] = useState(false);
 
@@ -234,14 +255,14 @@ function FloatingNavbar() {
     >
       <nav className="landing-shell mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link className="flex items-center gap-3 font-semibold tracking-normal" href="/">
-          <span className="memora-wordmark text-xl sm:text-2xl">Memora</span>
+          <span className="memora-wordmark text-xl sm:text-2xl">Mindshelf</span>
         </Link>
         <div className="hidden items-center gap-8 text-sm font-medium landing-muted md:flex">
           <a className="transition-colors hover:text-foreground" href="#product">
             Product
           </a>
-          <a className="transition-colors hover:text-foreground" href="#pricing">
-            Pricing
+          <a className="transition-colors hover:text-foreground" href="#how-it-works">
+            How it works
           </a>
           <a className="transition-colors hover:text-foreground" href="#docs">
             Docs
@@ -249,15 +270,27 @@ function FloatingNavbar() {
         </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          <Link
-            className="hidden rounded-full px-4 py-2 text-sm font-medium transition-colors hover:bg-accent sm:inline-flex"
-            href="/login"
-          >
-            Sign in
-          </Link>
-          <Link className={cn(buttonVariants({ variant: "default" }), "rounded-full")} href="/signup">
-            Get Started
-          </Link>
+          {isSignedIn ? (
+            <Link
+              className={cn(buttonVariants({ variant: "default" }), "rounded-full gap-2")}
+              href="/app"
+            >
+              <LayoutDashboard className="size-4" />
+              Dashboard
+            </Link>
+          ) : (
+            <>
+              <Link
+                className="hidden rounded-full px-4 py-2 text-sm font-medium transition-colors hover:bg-accent sm:inline-flex"
+                href="/login"
+              >
+                Sign in
+              </Link>
+              <Link className={cn(buttonVariants({ variant: "default" }), "rounded-full")} href="/signup">
+                Get Started
+              </Link>
+            </>
+          )}
         </div>
       </nav>
     </motion.header>
@@ -290,7 +323,7 @@ function ProductPreview() {
       <div className="landing-panel overflow-hidden rounded-[2rem]">
         <div className="flex items-center justify-between border-b px-5 py-4">
           <div className="flex items-center gap-3">
-            <span className="memora-wordmark text-lg">Memora</span>
+            <span className="memora-wordmark text-lg">Mindshelf</span>
           </div>
           <div className="hidden h-10 w-[42%] items-center gap-3 rounded-full border bg-background px-4 text-sm landing-muted md:flex">
             <Search className="size-4" />
@@ -550,7 +583,7 @@ function PipelineNode({
 
 function SpacesSection() {
   return (
-    <section className="neon-section landing-shell" id="pricing">
+    <section className="neon-section landing-shell" id="how-it-works">
       <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8">
         <div className="max-w-3xl">
           <p className="text-sm font-semibold uppercase text-primary">Spaces</p>
@@ -605,14 +638,14 @@ function LandingFooter() {
       <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-[1fr_auto_auto_auto] lg:px-8">
         <div>
           <div className="flex items-center gap-3 font-semibold">
-            <span className="memora-wordmark text-lg">Memora</span>
+            <span className="memora-wordmark text-lg">Mindshelf</span>
           </div>
-          <p className="mt-3 text-sm landing-muted">Your second memory.</p>
+          <p className="mt-3 text-sm landing-muted">Your intelligent shelf.</p>
           <div className="mt-4">
             <ThemeToggle />
           </div>
         </div>
-        <FooterGroup title="Product" items={["Features", "Pricing", "Security"]} />
+        <FooterGroup title="Product" items={["Features", "How it works", "Security"]} />
         <FooterGroup title="Support" items={["Docs", "Status", "Contact"]} />
         <FooterGroup title="Legal" items={["Privacy", "Terms"]} />
       </div>

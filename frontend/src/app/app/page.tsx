@@ -12,6 +12,7 @@ import {
   quickActions,
   spaceSummaries,
 } from "@/data/dashboard";
+import { UserGreeting } from "@/components/dashboard/user-greeting";
 import { cn } from "@/lib/utils";
 
 export default function AppHomePage() {
@@ -23,11 +24,9 @@ export default function AppHomePage() {
             <p className="text-sm font-medium uppercase tracking-normal text-muted-foreground">
               Home
             </p>
-            <h1 className="text-3xl font-semibold tracking-normal text-foreground sm:text-4xl">
-              Good evening, Aditya.
-            </h1>
+            <UserGreeting />
             <p className="text-base leading-7 text-muted-foreground">
-              Your memory, organized. Save videos and documents, let Memora
+              Your memory, organized. Save reels, videos, and documents, let Mindshelf
               understand them, then search everything when you need it.
             </p>
           </div>
@@ -106,7 +105,7 @@ export default function AppHomePage() {
           <SectionHeading
             id="content-types-heading"
             title="Content-type overview"
-            description="Formats Memora can capture, process, and retrieve."
+            description="Formats Mindshelf can capture, process, and retrieve."
           />
           <div className="grid gap-3 sm:grid-cols-2">
             {contentTypeSummaries.map((item) => (

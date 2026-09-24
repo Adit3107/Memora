@@ -175,14 +175,15 @@ async function apiJSON<T>(path: string, init?: RequestInit): Promise<T> {
 
 	const body = (await response.json()) as APIResponse<T>;
 	if (!response.ok || !body.success || body.data === undefined) {
-		throw new Error(body.error || body.message || "Memora request failed");
+		throw new Error(body.error || body.message || "Mindshelf request failed");
 	}
 
 	return body.data;
 }
 
-export async function listContent(): Promise<BackendContent[]> {
-	return apiJSON<BackendContent[]>("/content", {
+export async function listContent(userId?: string): Promise<BackendContent[]> {
+	const qs = userId ? `?user_id=${encodeURIComponent(userId)}` : "";
+	return apiJSON<BackendContent[]>(`/content${qs}`, {
 		cache: "no-store",
 	});
 }
@@ -193,9 +194,46 @@ export async function getContent(id: string): Promise<BackendContent> {
 	});
 }
 
-export async function listSpaces(): Promise<BackendSpace[]> {
-	return apiJSON<BackendSpace[]>("/spaces", {
+export async function updateContent(
+	id: string,
+	payload: {
+		user_id: string;
+		space_id: string;
+		name: string;
+		title: string;
+		description: string;
+		type: ContentType;
+		source_url?: string;
+		thumbnail_url?: string;
+	}
+): Promise<BackendContent> {
+	return apiJSON<BackendContent>(`/content/${encodeURIComponent(id)}`, {
+		method: "PUT",
+		body: JSON.stringify(payload),
+	});
+}
+
+export async function deleteContent(id: string): Promise<void> {
+	await apiJSON<unknown>(`/content/${encodeURIComponent(id)}`, {
+		method: "DELETE",
+	});
+}
+
+export async function listSpaces(userId?: string): Promise<BackendSpace[]> {
+	const qs = userId ? `?user_id=${encodeURIComponent(userId)}` : "";
+	return apiJSON<BackendSpace[]>(`/spaces${qs}`, {
 		cache: "no-store",
+	});
+}
+
+export async function syncUser(payload: {
+	id: string;
+	name: string;
+	email: string;
+}): Promise<unknown> {
+	return apiJSON<unknown>("/users/sync", {
+		method: "POST",
+		body: JSON.stringify(payload),
 	});
 }
 
@@ -210,8 +248,25 @@ export async function createSpace(payload: {
 	});
 }
 
-export async function listTags(): Promise<BackendTag[]> {
-	return apiJSON<BackendTag[]>("/tags", {
+export async function updateSpace(
+	id: string,
+	payload: { user_id: string; name: string; description: string }
+): Promise<BackendSpace> {
+	return apiJSON<BackendSpace>(`/spaces/${encodeURIComponent(id)}`, {
+		method: "PUT",
+		body: JSON.stringify(payload),
+	});
+}
+
+export async function deleteSpace(id: string): Promise<void> {
+	await apiJSON<unknown>(`/spaces/${encodeURIComponent(id)}`, {
+		method: "DELETE",
+	});
+}
+
+export async function listTags(userId?: string): Promise<BackendTag[]> {
+	const qs = userId ? `?user_id=${encodeURIComponent(userId)}` : "";
+	return apiJSON<BackendTag[]>(`/tags${qs}`, {
 		cache: "no-store",
 	});
 }
@@ -371,6 +426,18 @@ export async function searchMemora(
 		method: "POST",
 		body: JSON.stringify(payload),
 	});
+}
+
+export const searchMindshelf = searchMemora;
+
+export type ContentSummary = {
+	summary: string;
+	bullets: string[];
+	source: string;
+};
+
+export async function getContentSummary(contentId: string): Promise<ContentSummary> {
+	return apiJSON<ContentSummary>(`/content/${encodeURIComponent(contentId)}/summary`);
 }
 
 // =========================================================================

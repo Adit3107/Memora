@@ -10,7 +10,8 @@ import (
 )
 
 type IngestionHandler struct {
-	service *services.IngestionService
+	service     *services.IngestionService
+	userService *services.UserService
 }
 
 type ingestURLRequest struct {
@@ -20,8 +21,8 @@ type ingestURLRequest struct {
 	URL     string `json:"url"`
 }
 
-func NewIngestionHandler(service *services.IngestionService) *IngestionHandler {
-	return &IngestionHandler{service: service}
+func NewIngestionHandler(service *services.IngestionService, userService *services.UserService) *IngestionHandler {
+	return &IngestionHandler{service: service, userService: userService}
 }
 
 func (h *IngestionHandler) IngestURL(c *gin.Context) {
@@ -29,6 +30,11 @@ func (h *IngestionHandler) IngestURL(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, http.StatusBadRequest, "Invalid request body", err.Error())
 		return
+	}
+
+	// Ensure user exists — gracefully handles post-wipe sessions
+	if req.UserID != "" && h.userService != nil {
+		_, _ = h.userService.Sync(req.UserID, "", "")
 	}
 
 	result, err := h.service.IngestURL(c.Request.Context(), services.IngestURLInput{
@@ -52,6 +58,11 @@ func (h *IngestionHandler) IngestURL(c *gin.Context) {
 func (h *IngestionHandler) IngestFile(c *gin.Context) {
 	userID := c.PostForm("user_id")
 	spaceID := c.PostForm("space_id")
+
+	// Ensure user exists — gracefully handles post-wipe sessions
+	if userID != "" && h.userService != nil {
+		_, _ = h.userService.Sync(userID, "", "")
+	}
 
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {

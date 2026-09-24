@@ -8,12 +8,11 @@ export default function ForgotPasswordPage() {
     <main className="memora-landing flex min-h-screen items-center justify-center px-4 py-12">
       <section className="landing-panel landing-shell w-full max-w-md rounded-2xl p-8">
         <Link className="flex items-center gap-3 font-semibold" href="/">
-          <span className="memora-wordmark text-2xl">Memora</span>
+          <span className="memora-wordmark text-2xl">Mindshelf</span>
         </Link>
         <h1 className="mt-10 text-3xl font-semibold">Reset your password</h1>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          Enter your email and Memora will be ready for a real password reset
-          flow when authentication is connected.
+          Enter your email and Mindshelf will send a password reset code to your inbox.
         </p>
         <form className="mt-8 space-y-4">
           <label className="space-y-2 text-sm font-medium">

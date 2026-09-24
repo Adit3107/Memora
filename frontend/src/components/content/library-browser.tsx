@@ -1,9 +1,9 @@
 "use client";
 
-import { FileText, Image, Newspaper, Video } from "lucide-react";
+import { useUser } from "@clerk/nextjs";
+import { BookOpen, FileText, Image, Newspaper, Video } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-import { savedContent } from "@/data/content";
 import {
   displayContentName,
   listContent,
@@ -13,24 +13,23 @@ import {
   type BackendSpace,
   type BackendTag,
 } from "@/lib/api";
-import type { ContentType, SavedContentItem } from "@/types/content";
+import { savedContent } from "@/data/content";
+import type { SavedContentItem } from "@/types/content";
 
 import { ContentCard } from "./content-card";
 import { EmptyState } from "./empty-state";
 import { ErrorState } from "../feedback/error-state";
 import { LoadingState } from "../feedback/loading-state";
 
-type FilterValue = "all" | "youtube" | "pdf" | "reddit" | ContentType;
+type FilterValue = "all" | "video" | "document" | "article";
 type SortValue = "recent" | "title" | "space";
+type SourceValue = "all" | "youtube" | "instagram" | "facebook" | string;
 
 const filters: { label: string; value: FilterValue }[] = [
   { label: "All", value: "all" },
-  { label: "YouTube", value: "youtube" },
+  { label: "Videos", value: "video" },
   { label: "Articles", value: "article" },
   { label: "Documents", value: "document" },
-  { label: "PDFs", value: "pdf" },
-  { label: "Images", value: "image" },
-  { label: "Reddit", value: "reddit" },
 ];
 
 const iconForType = {
@@ -41,22 +40,29 @@ const iconForType = {
 };
 
 export function LibraryBrowser() {
+  const { user, isLoaded } = useUser();
   const [activeFilter, setActiveFilter] = useState<FilterValue>("all");
   const [sort, setSort] = useState<SortValue>("recent");
+  const [sourceFilter, setSourceFilter] = useState<SourceValue>("all");
   const [query, setQuery] = useState("");
   const [items, setItems] = useState<SavedContentItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    void loadLibrary();
-  }, []);
+    if (isLoaded) void loadLibrary();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, user?.id]);
 
   async function loadLibrary() {
     setIsLoading(true);
     setError("");
     try {
-      const [content, spaces] = await Promise.all([listContent(), listSpaces()]);
+      const userId = user?.id;
+      const [content, spaces] = await Promise.all([
+        listContent(userId),
+        listSpaces(userId),
+      ]);
       const tagEntries = await Promise.all(
         content.map(async (item) => {
           try {
@@ -84,6 +90,7 @@ export function LibraryBrowser() {
     const trimmedQuery = query.trim().toLowerCase();
     const filtered = sourceItems.filter((item) => {
       const matchesFilter = filterMatches(item, activeFilter);
+      const matchesSource = sourceMatches(item, sourceFilter);
       const matchesQuery =
         !trimmedQuery ||
         [item.title, item.description, item.source, item.spaceName, ...item.tags]
@@ -91,11 +98,13 @@ export function LibraryBrowser() {
           .toLowerCase()
           .includes(trimmedQuery);
 
-      return matchesFilter && matchesQuery;
+      return matchesFilter && matchesSource && matchesQuery;
     });
 
     return sortItems(filtered, sort);
-  }, [activeFilter, items, query, sort]);
+  }, [activeFilter, items, query, sort, sourceFilter]);
+
+  const sourceOptions = sourceOptionsFor(activeFilter, items);
 
   if (isLoading) {
     return (
@@ -142,7 +151,10 @@ export function LibraryBrowser() {
                       : "bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                   ].join(" ")}
                   key={filter.value}
-                  onClick={() => setActiveFilter(filter.value)}
+                  onClick={() => {
+                    setActiveFilter(filter.value);
+                    setSourceFilter("all");
+                  }}
                   type="button"
                 >
                   {filter.label}
@@ -151,18 +163,34 @@ export function LibraryBrowser() {
             })}
           </div>
 
-          <label className="flex w-full flex-col gap-2 text-sm font-medium sm:w-56">
-            Sort
-            <select
-              className="h-9 rounded-md border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-              onChange={(event) => setSort(event.target.value as SortValue)}
-              value={sort}
-            >
-              <option value="recent">Recently saved</option>
-              <option value="title">Title</option>
-              <option value="space">Space</option>
-            </select>
-          </label>
+          <div className="grid w-full gap-3 sm:w-auto sm:grid-cols-2">
+            <label className="flex min-w-40 flex-col gap-2 text-sm font-medium">
+              Source
+              <select
+                className="h-9 rounded-md border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                onChange={(event) => setSourceFilter(event.target.value)}
+                value={sourceFilter}
+              >
+                {sourceOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex min-w-40 flex-col gap-2 text-sm font-medium">
+              Sort
+              <select
+                className="h-9 rounded-md border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                onChange={(event) => setSort(event.target.value as SortValue)}
+                value={sort}
+              >
+                <option value="recent">Recently saved</option>
+                <option value="title">Title</option>
+                <option value="space">Space</option>
+              </select>
+            </label>
+          </div>
         </div>
       </section>
 
@@ -176,14 +204,27 @@ export function LibraryBrowser() {
       {visibleItems.length > 0 ? (
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {visibleItems.map((item) => (
-            <ContentCard item={item} key={item.id ?? item.slug} />
+            <ContentCard
+              item={item}
+              key={item.id ?? item.slug}
+              onDeleted={(contentID) =>
+                setItems((current) => current.filter((entry) => entry.id !== contentID))
+              }
+            />
           ))}
         </section>
       ) : (
-        <EmptyState
-          title="No memories yet"
-          description="Save a YouTube URL or upload a document to test ingestion and search."
-        />
+        <div className="flex flex-col items-center justify-center gap-6 rounded-2xl border border-dashed border-border bg-card/50 py-20 text-center">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
+            <BookOpen className="h-10 w-10 text-primary" />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-xl font-semibold text-foreground">No saved content yet</h3>
+            <p className="max-w-sm text-sm text-muted-foreground">
+              Start building your second brain — save a YouTube video, paste an article URL, or upload a document.
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -193,16 +234,51 @@ function filterMatches(item: SavedContentItem, filter: FilterValue) {
   if (filter === "all") {
     return true;
   }
-  if (filter === "youtube") {
-    return item.type === "video" || item.source.toLowerCase().includes("youtube");
-  }
-  if (filter === "pdf") {
-    return item.type === "document" && item.title.toLowerCase().endsWith(".pdf");
-  }
-  if (filter === "reddit") {
-    return item.source.toLowerCase().includes("reddit");
-  }
   return item.type === filter;
+}
+
+function sourceMatches(item: SavedContentItem, source: SourceValue) {
+  if (source === "all") return true;
+  if (item.type === "document") {
+    return documentExtension(item.title).toLowerCase() === source;
+  }
+  return item.platform === source;
+}
+
+function sourceOptionsFor(filter: FilterValue, items: SavedContentItem[]) {
+  if (filter === "video") {
+    return [
+      { label: "All video sources", value: "all" },
+      { label: "YouTube", value: "youtube" },
+      { label: "Instagram", value: "instagram" },
+      { label: "Facebook", value: "facebook" },
+    ];
+  }
+
+  if (filter === "document") {
+    const extensions = Array.from(
+      new Set(
+        items
+          .filter((item) => item.type === "document")
+          .map((item) => documentExtension(item.title))
+      )
+    );
+
+    return [
+      { label: "All document types", value: "all" },
+      ...extensions.map((extension) => ({
+        label: extension,
+        value: extension.toLowerCase(),
+      })),
+    ];
+  }
+
+  return [{ label: "All sources", value: "all" }];
+}
+
+function documentExtension(title: string) {
+  const extension = title.split(".").pop();
+  return extension && extension.length <= 5 ? extension.toUpperCase() : "DOC";
 }
 
 function sortItems(items: SavedContentItem[], sort: SortValue) {
@@ -238,14 +314,13 @@ function toSavedContentItem(
     source: sourceLabel(item),
     sourceUrl: item.source_url,
     thumbnailUrl: item.thumbnail_url,
-    description: item.description || "Saved to Memora and ready for search.",
+    description: item.description || "Saved to Mindshelf and ready for search.",
     metadata: metadataLabel(item),
     dateLabel: formatDate(item.created_at),
     spaceSlug: item.space_id,
     spaceName: space?.name ?? "Unknown space",
     tags: tags.map((tag) => tag.name),
     status: "Ready",
-    icon: iconForType[type],
     platform,
     detail: savedContent.find((mock) => mock.type === type)?.detail ?? savedContent[0].detail,
   };

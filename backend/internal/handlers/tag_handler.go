@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 
+	"memora-backend/internal/models"
 	"memora-backend/internal/response"
 	"memora-backend/internal/services"
 
@@ -46,7 +47,14 @@ func (h *TagHandler) Create(c *gin.Context) {
 }
 
 func (h *TagHandler) List(c *gin.Context) {
-	tags, err := h.service.List()
+	userID := c.Query("user_id")
+	var tags []models.Tag
+	var err error
+	if userID != "" {
+		tags, err = h.service.ListByUserID(userID)
+	} else {
+		tags, err = h.service.List()
+	}
 	if err != nil {
 		handleServiceError(c, err)
 		return

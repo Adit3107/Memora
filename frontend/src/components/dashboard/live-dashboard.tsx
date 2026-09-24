@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FileText, Image, Newspaper, Search, Video } from "lucide-react";
+import { useUser } from "@clerk/nextjs";
 import { motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 
@@ -46,20 +47,26 @@ const cardVariants = {
 };
 
 export function LiveDashboard() {
+  const { user, isLoaded } = useUser();
   const [content, setContent] = useState<SavedContentItem[]>([]);
   const [spaces, setSpaces] = useState<BackendSpace[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    void loadDashboard();
-  }, []);
+    if (isLoaded) void loadDashboard();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, user?.id]);
 
   async function loadDashboard() {
     setIsLoading(true);
     setError("");
     try {
-      const [contentRows, spaceRows] = await Promise.all([listContent(), listSpaces()]);
+      const userId = user?.id;
+      const [contentRows, spaceRows] = await Promise.all([
+        listContent(userId),
+        listSpaces(userId),
+      ]);
       setSpaces(spaceRows);
       setContent(contentRows.map((item) => toSavedContentItem(item, spaceRows)));
     } catch {
@@ -94,7 +101,7 @@ export function LiveDashboard() {
   );
 
   if (isLoading) {
-    return <LoadingState title="Loading dashboard" description="Fetching live Memora data." />;
+    return <LoadingState title="Loading dashboard" description="Fetching live Mindshelf data." />;
   }
 
   if (error) {
@@ -126,7 +133,7 @@ export function LiveDashboard() {
           />
           <Link
             className={cn(buttonVariants({ variant: "outline" }), "w-fit")}
-            href="/library"
+            href="/app/library"
           >
             View library
           </Link>
@@ -175,14 +182,13 @@ function toSavedContentItem(
     source: sourceLabel(item),
     sourceUrl: item.source_url,
     thumbnailUrl: item.thumbnail_url,
-    description: item.description || "Saved to Memora and ready for search.",
+    description: item.description || "Saved to Mindshelf and ready for search.",
     metadata: item.type === "video" ? (platform ? `${platformLabel(platform)} chunks` : "Transcript chunks") : "Extracted chunks",
     dateLabel: formatDate(item.created_at),
     spaceSlug: item.space_id,
     spaceName: space?.name ?? "Unknown space",
     tags: [],
     status: "Ready",
-    icon: iconForType[item.type],
     platform,
     detail: template,
   };
