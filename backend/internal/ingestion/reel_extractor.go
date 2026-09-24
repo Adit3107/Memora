@@ -3,6 +3,7 @@ package ingestion
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"strings"
 )
@@ -37,6 +38,12 @@ func (e *ReelExtractor) Extract(ctx context.Context, input ExtractInput) (Ingest
 	if err != nil {
 		return IngestionResult{}, err
 	}
+	slog.Info("reel extraction response received",
+		"platform", platform,
+		"segments_count", len(payload.Transcript),
+		"has_audio_speech", payload.Metadata["has_audio_speech"],
+		"has_ocr_text", payload.Metadata["has_ocr_text"],
+	)
 	if len(payload.Transcript) == 0 {
 		return IngestionResult{}, ErrTranscriptUnavailable
 	}

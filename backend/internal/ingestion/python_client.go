@@ -48,7 +48,7 @@ func isConnectionRefused(err error) bool {
 
 func NewPythonExtractionClient(baseURL string, client HTTPClient) *PythonExtractionClient {
 	if client == nil {
-		client = &http.Client{Timeout: 60 * time.Second}
+		client = &http.Client{Timeout: 240 * time.Second}
 	}
 
 	return &PythonExtractionClient{
