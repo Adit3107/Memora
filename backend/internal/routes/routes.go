@@ -29,17 +29,18 @@ func RegisterRoutes(router *gin.Engine, db *sql.DB, cfg config.Config) {
 	ingestionHandler := handlers.NewIngestionHandler(services.NewIngestionService(contentRepo, spaceRepo, ingestionRepo, cfg.AIServiceURL, cfg.EmbeddingDimension, cfg.EmbeddingMaxConcurrency))
 	searchService := services.NewSearchService(searchRepo, cfg.AIServiceURL, cfg.EmbeddingDimension)
 	searchHandler := handlers.NewSearchHandler(searchService)
-	ragHandler := handlers.NewRAGHandler(services.NewRAGService(
-		searchService,
-		services.NewGeminiLLMService(cfg.GeminiAPIKey, cfg.GeminiModel),
-		services.RAGConfig{
-			TopK:               cfg.RAG.TopK,
-			HistoryMessages:    cfg.RAG.HistoryMessages,
-			ContextMaxChars:    cfg.RAG.ContextMaxChars,
-			ChunkMaxChars:      cfg.RAG.ChunkMaxChars,
-			AllowLocalFallback: cfg.RAG.AllowLocalFallback,
-		},
-	))
+	// === PAUSED FEATURE: RAG Service (Put on hold for upcoming release) ===
+	// ragHandler := handlers.NewRAGHandler(services.NewRAGService(
+	// 	searchService,
+	// 	services.NewGeminiLLMService(cfg.GeminiAPIKey, cfg.GeminiModel),
+	// 	services.RAGConfig{
+	// 		TopK:               cfg.RAG.TopK,
+	// 		HistoryMessages:    cfg.RAG.HistoryMessages,
+	// 		ContextMaxChars:    cfg.RAG.ContextMaxChars,
+	// 		ChunkMaxChars:      cfg.RAG.ChunkMaxChars,
+	// 		AllowLocalFallback: cfg.RAG.AllowLocalFallback,
+	// 	},
+	// ))
 
 	api := router.Group("/api")
 
@@ -78,7 +79,8 @@ func RegisterRoutes(router *gin.Engine, db *sql.DB, cfg config.Config) {
 	searchRoutes.POST("", searchHandler.Search)
 	searchRoutes.POST("/semantic", searchHandler.Semantic)
 
-	api.POST("/rag", ragHandler.Ask)
+	// === PAUSED FEATURE: RAG Endpoint ===
+	// api.POST("/rag", ragHandler.Ask)
 
 	tags := api.Group("/tags")
 	tags.POST("", tagHandler.Create)

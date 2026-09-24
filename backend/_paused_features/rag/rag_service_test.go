@@ -1,3 +1,11 @@
+/*
+=============================================================================
+PAUSED FEATURE: RAG Service Tests (Put on hold for upcoming release)
+Unit tests for RAGService intent, citations, grounding, and fallbacks.
+Separated and commented out so the developer can focus on working code.
+To resume: uncomment this file and move back to internal/services.
+=============================================================================
+
 package services
 
 import (
@@ -533,3 +541,5 @@ func documentChunk(contentID string, chunkID string) repository.ChunkSearchResul
 func floatPtr(value float64) *float64 {
 	return &value
 }
+*/
+

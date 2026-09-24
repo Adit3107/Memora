@@ -1,3 +1,11 @@
+/*
+=============================================================================
+PAUSED FEATURE: RAG Handler (Put on hold for upcoming release)
+This handler connects the /api/rag endpoint with the RAGService.
+Separated and commented out so the developer can focus on working code.
+To resume: uncomment this file and re-enable the route in routes.go.
+=============================================================================
+
 package handlers
 
 import (
@@ -53,3 +61,4 @@ func (h *RAGHandler) Ask(c *gin.Context) {
 
 // Why this file exists:
 // The RAG API stays in Go so the frontend never calls an LLM provider directly.
+*/

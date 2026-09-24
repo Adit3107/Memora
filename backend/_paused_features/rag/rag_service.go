@@ -1,3 +1,11 @@
+/*
+=============================================================================
+PAUSED FEATURE: RAG Service (Put on hold for upcoming release)
+Provides grounded retrieval-augmented generation across saved content.
+Separated and commented out so the developer can focus on working code.
+To resume: uncomment this file and move back to internal/services.
+=============================================================================
+
 package services
 
 import (
@@ -861,3 +869,5 @@ func cleanLLMAnswer(answer string) string {
 func IsRAGClientError(err error) bool {
 	return errors.Is(err, ErrValidation)
 }
+*/
+

@@ -114,40 +114,43 @@ export type SearchResponse = {
 	results: SearchResult[];
 };
 
-export type RAGScope =
-	| { type: "library" }
-	| { type: "content"; content_id: string }
-	| { type: "selected_sources"; content_ids: string[] };
-
-export type RAGMessage = {
-	role: "user" | "assistant";
-	content: string;
-};
-
-export type RAGCitation = {
-	content_id: string;
-	title: string;
-	type: ContentType;
-	source_url?: string;
-	page?: number;
-	timestamp?: {
-		start: number;
-		end?: number;
-	};
-};
-
-export type RAGResponse = {
-	answer: string;
-	citations: RAGCitation[];
-};
-
-export type RAGRequest = {
-	user_id: string;
-	question: string;
-	scope: RAGScope;
-	history?: RAGMessage[];
-	top_k?: number;
-};
+// =========================================================================
+// PAUSED FEATURE: RAG Types (Put on hold for upcoming release)
+// =========================================================================
+// export type RAGScope =
+// 	| { type: "library" }
+// 	| { type: "content"; content_id: string }
+// 	| { type: "selected_sources"; content_ids: string[] };
+// 
+// export type RAGMessage = {
+// 	role: "user" | "assistant";
+// 	content: string;
+// };
+// 
+// export type RAGCitation = {
+// 	content_id: string;
+// 	title: string;
+// 	type: ContentType;
+// 	source_url?: string;
+// 	page?: number;
+// 	timestamp?: {
+// 		start: number;
+// 		end?: number;
+// 	};
+// };
+// 
+// export type RAGResponse = {
+// 	answer: string;
+// 	citations: RAGCitation[];
+// };
+// 
+// export type RAGRequest = {
+// 	user_id: string;
+// 	question: string;
+// 	scope: RAGScope;
+// 	history?: RAGMessage[];
+// 	top_k?: number;
+// };
 
 type APIResponse<T> = {
   success: boolean;
@@ -370,12 +373,15 @@ export async function searchMemora(
 	});
 }
 
-export async function askMemora(payload: RAGRequest): Promise<RAGResponse> {
-	return apiJSON<RAGResponse>("/rag", {
-		method: "POST",
-		body: JSON.stringify(payload),
-	});
-}
+// =========================================================================
+// PAUSED FEATURE: askMemora (Put on hold for upcoming release)
+// =========================================================================
+// export async function askMemora(payload: RAGRequest): Promise<RAGResponse> {
+// 	return apiJSON<RAGResponse>("/rag", {
+// 		method: "POST",
+// 		body: JSON.stringify(payload),
+// 	});
+// }
 
 export function displayContentName(item: BackendContent): string {
 	return item.name?.trim() || item.title;

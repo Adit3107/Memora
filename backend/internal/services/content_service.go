@@ -122,6 +122,11 @@ func trimOptionalString(value *string) *string {
 	return &trimmed
 }
 
+func looksLikeURL(value string) bool {
+	lower := strings.ToLower(strings.TrimSpace(value))
+	return strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://")
+}
+
 func contentDisplayName(title string, contentType models.ContentType, sourceURL *string) string {
 	title = strings.TrimSpace(title)
 	if title != "" && !looksLikeURL(title) {

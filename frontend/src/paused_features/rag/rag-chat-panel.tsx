@@ -1,3 +1,11 @@
+/*
+=============================================================================
+PAUSED FEATURE: RAG Chat Panel (Put on hold for upcoming release)
+Reusable RAG chat panel for asking questions scoped to content or spaces.
+Separated and commented out so the developer can focus on working code.
+To resume: uncomment this file and re-mount where needed.
+=============================================================================
+
 "use client";
 
 import { Bot, FileText, Library, Send, Video } from "lucide-react";
@@ -234,3 +242,5 @@ function citationHref(citation: RAGCitation) {
 		return citation.source_url;
 	}
 }
+*/
+

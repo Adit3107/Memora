@@ -1,3 +1,11 @@
+/*
+=============================================================================
+PAUSED FEATURE: AI Playground (Put on hold for upcoming release)
+Full interactive conversational RAG playground with scope selection & citations.
+Separated and commented out so the developer can focus on working code.
+To resume: uncomment this file and re-mount in src/app/app/ai/page.tsx.
+=============================================================================
+
 "use client";
 
 import {
@@ -474,3 +482,5 @@ function citationHref(citation: RAGCitation) {
 		return citation.source_url;
 	}
 }
+*/
+

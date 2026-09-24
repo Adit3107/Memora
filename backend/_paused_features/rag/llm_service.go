@@ -1,3 +1,11 @@
+/*
+=============================================================================
+PAUSED FEATURE: Gemini LLM Service (Put on hold for upcoming release)
+Provides the Google Gemini API integration for RAG synthesis.
+Separated and commented out so the developer can focus on working code.
+To resume: uncomment this file and re-enable in internal/services.
+=============================================================================
+
 package services
 
 import (
@@ -131,3 +139,4 @@ type geminiGenerateResponse struct {
 		Content geminiContent `json:"content"`
 	} `json:"candidates"`
 }
+*/
