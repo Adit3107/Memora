@@ -29,12 +29,14 @@ type IngestionService struct {
 type IngestURLInput struct {
 	UserID  string
 	SpaceID string
+	Name    string
 	URL     string
 }
 
 type IngestFileInput struct {
 	UserID      string
 	SpaceID     string
+	Name        string
 	FileName    string
 	ContentType string
 	Body        io.Reader
@@ -105,10 +107,13 @@ func (s *IngestionService) IngestURL(ctx context.Context, input IngestURLInput) 
 		return IngestURLResult{}, ingestion.ErrUnsupportedSourceType
 	}
 
+	inputName := strings.TrimSpace(input.Name)
 	return s.runIngestion(ctx, runIngestionInput{
 		userID:      userID,
 		spaceID:     spaceID,
 		title:       fallbackTitle(sourceURL),
+		name:        displayTitle(inputName, contentDisplayName(fallbackTitle(sourceURL), modelContentTypeForDetected(detected), &sourceURL)),
+		lockName:    inputName != "",
 		contentType: modelContentTypeForDetected(detected),
 		sourceURL:   &sourceURL,
 		extractor:   extractor,
@@ -145,10 +150,13 @@ func (s *IngestionService) IngestFile(ctx context.Context, input IngestFileInput
 		return IngestResult{}, ingestion.ErrUnsupportedSourceType
 	}
 
+	inputName := strings.TrimSpace(input.Name)
 	return s.runIngestion(ctx, runIngestionInput{
 		userID:      userID,
 		spaceID:     spaceID,
 		title:       fileName,
+		name:        displayTitle(inputName, fileName),
+		lockName:    inputName != "",
 		contentType: modelContentTypeForDetected(detected),
 		extractor:   extractor,
 		extractInput: ingestion.ExtractInput{
@@ -202,6 +210,8 @@ func IsIngestionClientError(err error) bool {
 type runIngestionInput struct {
 	userID       string
 	spaceID      string
+	name         string
+	lockName     bool
 	title        string
 	contentType  models.ContentType
 	sourceURL    *string
@@ -218,6 +228,7 @@ func (s *IngestionService) runIngestion(ctx context.Context, input runIngestionI
 	content, err := s.contentRepo.Create(models.Content{
 		UserID:      input.userID,
 		SpaceID:     input.spaceID,
+		Name:        displayTitle(input.name, input.title),
 		Title:       input.title,
 		Description: "",
 		Type:        input.contentType,
@@ -260,6 +271,14 @@ func (s *IngestionService) runIngestion(ctx context.Context, input runIngestionI
 		return IngestResult{}, err
 	}
 
+	content = contentWithExtractedMetadata(content, cleaned, input.lockName)
+	if updatedContent, err := s.contentRepo.Update(content.ID, content); err != nil {
+		markFailed("content_metadata", err)
+		return IngestResult{}, err
+	} else {
+		content = updatedContent
+	}
+
 	chunks, err := ingestion.ChunkIngestionResult(cleaned, s.chunkConfig)
 	if err != nil {
 		markFailed("chunking", err)
@@ -281,10 +300,28 @@ func (s *IngestionService) runIngestion(ctx context.Context, input runIngestionI
 		ContentID:   content.ID,
 		IngestionID: ingestionID,
 		Status:      repository.IngestionStatusCompleted,
-		Title:       displayTitle(cleaned.Title, content.Title),
+		Title:       displayTitle(content.Name, cleaned.Title, content.Title),
 		ContentType: input.contentType,
 		ChunkCount:  len(chunks),
 	}, nil
+}
+
+func contentWithExtractedMetadata(content models.Content, cleaned ingestion.IngestionResult, lockName bool) models.Content {
+	extractedTitle := strings.TrimSpace(cleaned.Title)
+	if extractedTitle != "" && !looksLikeURL(extractedTitle) {
+		content.Title = extractedTitle
+		if !lockName {
+			content.Name = extractedTitle
+		}
+	} else if strings.TrimSpace(content.Name) == "" {
+		content.Name = contentDisplayName(content.Title, content.Type, content.SourceURL)
+	}
+
+	if description := strings.TrimSpace(cleaned.Description); description != "" {
+		content.Description = description
+	}
+	content.UpdatedAt = time.Now().UTC()
+	return content
 }
 
 func (s *IngestionService) validateSpace(userID string, spaceID string) error {

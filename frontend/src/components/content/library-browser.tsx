@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { savedContent } from "@/data/content";
 import {
+  displayContentName,
   listContent,
   listContentTags,
   listSpaces,
@@ -225,11 +226,12 @@ function toSavedContentItem(
 ): SavedContentItem {
   const space = spaces.find((candidate) => candidate.id === item.space_id);
   const type = item.type;
+  const displayName = displayContentName(item);
 
   return {
     id: item.id,
     slug: item.id,
-    title: item.title,
+    title: displayName,
     type,
     source: sourceLabel(item),
     sourceUrl: item.source_url,

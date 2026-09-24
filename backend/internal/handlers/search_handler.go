@@ -20,6 +20,7 @@ type searchRequest struct {
 	Query       string              `json:"query"`
 	Mode        services.SearchMode `json:"mode"`
 	SpaceID     *string             `json:"space_id"`
+	ContentIDs  []string            `json:"content_ids"`
 	ContentType *models.ContentType `json:"content_type"`
 	SourceType  *string             `json:"source_type"`
 	TagIDs      []string            `json:"tag_ids"`
@@ -106,6 +107,7 @@ func toSearchInput(req searchRequest) (services.SearchInput, error) {
 		Query:       req.Query,
 		Mode:        req.Mode,
 		SpaceID:     req.SpaceID,
+		ContentIDs:  req.ContentIDs,
 		ContentType: req.ContentType,
 		SourceType:  req.SourceType,
 		TagIDs:      req.TagIDs,

@@ -18,6 +18,7 @@ type ContentHandler struct {
 type contentRequest struct {
 	UserID       string             `json:"user_id"`
 	SpaceID      string             `json:"space_id"`
+	Name         string             `json:"name"`
 	Title        string             `json:"title"`
 	Description  string             `json:"description"`
 	Type         models.ContentType `json:"type"`
@@ -102,6 +103,7 @@ func toCreateContentInput(req contentRequest) services.CreateContentInput {
 	return services.CreateContentInput{
 		UserID:       req.UserID,
 		SpaceID:      req.SpaceID,
+		Name:         req.Name,
 		Title:        req.Title,
 		Description:  req.Description,
 		Type:         req.Type,

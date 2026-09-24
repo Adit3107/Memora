@@ -23,9 +23,10 @@ const (
 )
 
 const (
-	defaultSearchLimit = 10
-	maxSearchLimit     = 25
-	hybridRankConstant = 60.0
+	defaultSearchLimit  = 10
+	maxSearchLimit      = 25
+	maxContentChunkRead = 80
+	hybridRankConstant  = 60.0
 )
 
 type SearchService struct {
@@ -38,6 +39,7 @@ type SearchInput struct {
 	Query       string
 	Mode        SearchMode
 	SpaceID     *string
+	ContentIDs  []string
 	ContentType *models.ContentType
 	SourceType  *string
 	TagIDs      []string
@@ -62,6 +64,7 @@ type SemanticSearchInput struct {
 }
 
 type SemanticSearchResult = repository.ChunkSearchResult
+type ContentMetadataResult = repository.ContentMetadataResult
 
 func NewSearchService(repo *repository.SearchRepository, aiServiceURL string, embeddingDimension int) *SearchService {
 	return &SearchService{
@@ -111,6 +114,44 @@ func (s *SearchService) SemanticSearch(ctx context.Context, input SemanticSearch
 		return nil, err
 	}
 	return response.Results, nil
+}
+
+func (s *SearchService) ContentChunks(ctx context.Context, input SearchInput) (SearchResponse, error) {
+	normalized, err := normalizeSearchInput(input)
+	if err != nil {
+		return SearchResponse{}, err
+	}
+	if len(normalized.ContentIDs) == 0 {
+		return SearchResponse{}, ErrValidation
+	}
+	limit := normalized.Limit
+	if limit <= 0 {
+		limit = maxContentChunkRead
+	}
+	if limit > maxContentChunkRead {
+		limit = maxContentChunkRead
+	}
+
+	results, err := s.repo.ContentChunks(ctx, toRepositoryFilters(normalized), limit)
+	if err != nil {
+		return SearchResponse{}, err
+	}
+
+	return SearchResponse{
+		Mode:    SearchModeKeyword,
+		Query:   normalized.Query,
+		Total:   len(results),
+		Results: results,
+	}, nil
+}
+
+func (s *SearchService) ContentMetadata(ctx context.Context, userID string, contentID string) (ContentMetadataResult, error) {
+	userID = strings.TrimSpace(userID)
+	contentID = strings.TrimSpace(contentID)
+	if userID == "" || contentID == "" {
+		return ContentMetadataResult{}, ErrValidation
+	}
+	return s.repo.ContentMetadata(ctx, userID, contentID)
 }
 
 func (s *SearchService) semanticSearch(ctx context.Context, input SearchInput) ([]repository.ChunkSearchResult, error) {
@@ -257,6 +298,21 @@ func normalizeSearchInput(input SearchInput) (SearchInput, error) {
 	}
 	input.TagIDs = cleanTagIDs
 
+	cleanContentIDs := make([]string, 0, len(input.ContentIDs))
+	seenContentIDs := map[string]struct{}{}
+	for _, contentID := range input.ContentIDs {
+		contentID = strings.TrimSpace(contentID)
+		if contentID == "" {
+			continue
+		}
+		if _, exists := seenContentIDs[contentID]; exists {
+			continue
+		}
+		seenContentIDs[contentID] = struct{}{}
+		cleanContentIDs = append(cleanContentIDs, contentID)
+	}
+	input.ContentIDs = cleanContentIDs
+
 	if input.CreatedFrom != nil && input.CreatedTo != nil && input.CreatedFrom.After(*input.CreatedTo) {
 		return SearchInput{}, ErrValidation
 	}
@@ -268,6 +324,7 @@ func toRepositoryFilters(input SearchInput) repository.SearchFilters {
 	return repository.SearchFilters{
 		UserID:      input.UserID,
 		SpaceID:     trimOptionalString(input.SpaceID),
+		ContentIDs:  input.ContentIDs,
 		ContentType: input.ContentType,
 		SourceType:  trimOptionalString(input.SourceType),
 		TagIDs:      input.TagIDs,

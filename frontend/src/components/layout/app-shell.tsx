@@ -116,6 +116,9 @@ function titleForPath(pathname: string) {
   if (pathname.includes("/search")) {
     return "Search";
   }
+  if (pathname.includes("/ai")) {
+    return "AI Playground";
+  }
   if (pathname.includes("/library")) {
     return "Library";
   }

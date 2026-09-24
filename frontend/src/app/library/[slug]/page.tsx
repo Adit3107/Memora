@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ContentDetail } from "@/components/content/content-detail";
 import { getContentBySlug, savedContent } from "@/data/content";
 import {
+  displayContentName,
   getContent,
   listContentTags,
   listSpaces,
@@ -63,7 +64,7 @@ function toSavedContentItem(
   return {
     id: item.id,
     slug: item.id,
-    title: item.title,
+    title: displayContentName(item),
     type: item.type,
     source: sourceLabel(item),
     sourceUrl: item.source_url,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -19,6 +20,7 @@ type SearchRepository struct {
 type SearchFilters struct {
 	UserID      string
 	SpaceID     *string
+	ContentIDs  []string
 	ContentType *models.ContentType
 	SourceType  *string
 	TagIDs      []string
@@ -45,6 +47,23 @@ type ChunkSearchResult struct {
 	Tags           []string           `json:"tags"`
 }
 
+type ContentMetadataResult struct {
+	ContentID    string             `json:"content_id"`
+	UserID       string             `json:"user_id"`
+	Name         string             `json:"name"`
+	Title        string             `json:"title"`
+	Description  string             `json:"description"`
+	ContentType  models.ContentType `json:"content_type"`
+	SourceURL    *string            `json:"source_url,omitempty"`
+	ThumbnailURL *string            `json:"thumbnail_url,omitempty"`
+	CreatedAt    time.Time          `json:"created_at"`
+	UpdatedAt    time.Time          `json:"updated_at"`
+	Metadata     map[string]string  `json:"metadata"`
+	MinSeconds   *float64           `json:"min_seconds,omitempty"`
+	MaxSeconds   *float64           `json:"max_seconds,omitempty"`
+	ChunkCount   int                `json:"chunk_count"`
+}
+
 func NewPostgresSearchRepository(db *sql.DB) *SearchRepository {
 	return &SearchRepository{db: db}
 }
@@ -64,7 +83,7 @@ func (r *SearchRepository) SemanticSearch(ctx context.Context, filters SearchFil
 			c.id,
 			cc.id,
 			cc.chunk_index,
-			c.title,
+			COALESCE(NULLIF(c.name, ''), c.title),
 			c.type,
 			c.source_url,
 			c.thumbnail_url,
@@ -95,7 +114,7 @@ func (r *SearchRepository) KeywordSearch(ctx context.Context, filters SearchFilt
 	offsetPlaceholder := len(args) + 1
 	args = append(args, offset)
 
-	document := `setweight(to_tsvector('english', c.title || ' ' || c.description), 'A') || to_tsvector('english', cc.text)`
+	document := `setweight(to_tsvector('english', COALESCE(NULLIF(c.name, ''), c.title) || ' ' || c.title || ' ' || c.description), 'A') || to_tsvector('english', cc.text)`
 	tsQuery := `plainto_tsquery('english', $1)`
 
 	return r.queryResults(ctx, fmt.Sprintf(`
@@ -103,7 +122,7 @@ func (r *SearchRepository) KeywordSearch(ctx context.Context, filters SearchFilt
 			c.id,
 			cc.id,
 			cc.chunk_index,
-			c.title,
+			COALESCE(NULLIF(c.name, ''), c.title),
 			c.type,
 			c.source_url,
 			c.thumbnail_url,
@@ -123,6 +142,98 @@ func (r *SearchRepository) KeywordSearch(ctx context.Context, filters SearchFilt
 		ORDER BY score DESC, c.created_at DESC
 		LIMIT $%d OFFSET $%d
 	`, document, tsQuery, tagsSubquery(), document, tsQuery, whereSQL, limitPlaceholder, offsetPlaceholder), args...)
+}
+
+func (r *SearchRepository) ContentChunks(ctx context.Context, filters SearchFilters, limit int) ([]ChunkSearchResult, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	args := []any{}
+	whereSQL, whereArgs := searchWhereClause(filters, len(args)+1)
+	args = append(args, whereArgs...)
+	limitPlaceholder := len(args) + 1
+	args = append(args, limit)
+
+	return r.queryResults(ctx, fmt.Sprintf(`
+		SELECT
+			c.id,
+			cc.id,
+			cc.chunk_index,
+			COALESCE(NULLIF(c.name, ''), c.title),
+			c.type,
+			c.source_url,
+			c.thumbnail_url,
+			cc.text,
+			1.0 AS score,
+			cc.page_index,
+			cc.start_seconds,
+			cc.end_seconds,
+			cc.source_type,
+			cc.embedding_model,
+			cc.metadata,
+			%s
+		FROM content_chunks cc
+		JOIN content c ON c.id = cc.content_id
+		WHERE TRUE
+			%s
+		ORDER BY c.created_at DESC, cc.chunk_index ASC
+		LIMIT $%d
+	`, tagsSubquery(), whereSQL, limitPlaceholder), args...)
+}
+
+func (r *SearchRepository) ContentMetadata(ctx context.Context, userID string, contentID string) (ContentMetadataResult, error) {
+	var result ContentMetadataResult
+	var metadataJSON []byte
+	err := r.db.QueryRowContext(ctx, `
+		SELECT
+			c.id,
+			c.user_id,
+			c.name,
+			c.title,
+			c.description,
+			c.type,
+			c.source_url,
+			c.thumbnail_url,
+			c.created_at,
+			c.updated_at,
+			COALESCE(ir.metadata, '{}'::jsonb),
+			MIN(cc.start_seconds),
+			MAX(cc.end_seconds),
+			COUNT(cc.id)
+		FROM content c
+		LEFT JOIN ingestion_results ir ON ir.content_id = c.id
+		LEFT JOIN content_chunks cc ON cc.content_id = c.id
+		WHERE c.user_id = $1
+			AND c.id = $2
+		GROUP BY c.id, c.user_id, c.name, c.title, c.description, c.type,
+			c.source_url, c.thumbnail_url, c.created_at, c.updated_at, ir.metadata
+	`, userID, contentID).Scan(
+		&result.ContentID,
+		&result.UserID,
+		&result.Name,
+		&result.Title,
+		&result.Description,
+		&result.ContentType,
+		&result.SourceURL,
+		&result.ThumbnailURL,
+		&result.CreatedAt,
+		&result.UpdatedAt,
+		&metadataJSON,
+		&result.MinSeconds,
+		&result.MaxSeconds,
+		&result.ChunkCount,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ContentMetadataResult{}, ErrNotFound
+	}
+	if err != nil {
+		return ContentMetadataResult{}, err
+	}
+	if err := json.Unmarshal(metadataJSON, &result.Metadata); err != nil {
+		return ContentMetadataResult{}, err
+	}
+
+	return result, nil
 }
 
 func (r *SearchRepository) queryResults(ctx context.Context, query string, args ...any) ([]ChunkSearchResult, error) {
@@ -181,6 +292,21 @@ func searchWhereClause(filters SearchFilters, startIndex int) (string, []any) {
 		clauses = append(clauses, "c.space_id = $"+strconv.Itoa(next))
 		args = append(args, strings.TrimSpace(*filters.SpaceID))
 		next++
+	}
+	if len(filters.ContentIDs) > 0 {
+		placeholders := make([]string, 0, len(filters.ContentIDs))
+		for _, contentID := range filters.ContentIDs {
+			contentID = strings.TrimSpace(contentID)
+			if contentID == "" {
+				continue
+			}
+			placeholders = append(placeholders, "$"+strconv.Itoa(next))
+			args = append(args, contentID)
+			next++
+		}
+		if len(placeholders) > 0 {
+			clauses = append(clauses, "c.id IN ("+strings.Join(placeholders, ", ")+")")
+		}
 	}
 	if filters.ContentType != nil && strings.TrimSpace(string(*filters.ContentType)) != "" {
 		clauses = append(clauses, "c.type = $"+strconv.Itoa(next))

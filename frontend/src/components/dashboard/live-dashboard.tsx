@@ -12,6 +12,7 @@ import { LoadingState } from "@/components/feedback/loading-state";
 import { buttonVariants } from "@/components/ui/button";
 import { savedContent } from "@/data/content";
 import {
+  displayContentName,
   listContent,
   listSpaces,
   type BackendContent,
@@ -167,7 +168,7 @@ function toSavedContentItem(
   return {
     id: item.id,
     slug: item.id,
-    title: item.title,
+    title: displayContentName(item),
     type: item.type,
     source: sourceLabel(item),
     sourceUrl: item.source_url,

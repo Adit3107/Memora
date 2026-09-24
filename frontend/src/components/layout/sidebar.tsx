@@ -2,6 +2,7 @@
 
 import {
   BookOpen,
+  Bot,
   ChevronLeft,
   FileText,
   Home,
@@ -32,6 +33,7 @@ type SidebarProps = {
 
 const primaryNavigation = [
   { title: "Home", href: "/app", icon: Home },
+  { title: "AI Playground", href: "/app/ai", icon: Bot },
   { title: "Search", href: "/app/search", icon: Search },
   { title: "Library", href: "/app/library", icon: Library },
 ];
@@ -146,6 +148,13 @@ function SidebarNav({
         />
         <div className="space-y-2">
           <GroupLabel collapsed={collapsed}>Spaces</GroupLabel>
+          <SidebarItem
+            collapsed={collapsed}
+            icon={Plus}
+            onNavigate={onNavigate}
+            title="Create Space"
+            href="/app/spaces"
+          />
           {spaces.slice(0, 4).map((space) => (
             <SidebarItem
               collapsed={collapsed}

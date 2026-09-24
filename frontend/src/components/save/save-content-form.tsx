@@ -62,6 +62,7 @@ const processingStages = [
 
 export function SaveContentForm() {
   const [inputType, setInputType] = useState<InputType>("video");
+  const [contentName, setContentName] = useState("");
   const [url, setUrl] = useState("");
   const [spaces, setSpaces] = useState<BackendSpace[]>([]);
   const [availableTags, setAvailableTags] = useState<BackendTag[]>([]);
@@ -170,6 +171,7 @@ export function SaveContentForm() {
               {
                 user_id: MEMORA_DEMO_USER_ID,
                 space_id: spaceID,
+                name: contentName.trim() || undefined,
                 file: selectedFile,
               },
               setUploadProgress
@@ -177,6 +179,7 @@ export function SaveContentForm() {
           : await ingestURL({
               user_id: MEMORA_DEMO_USER_ID,
               space_id: spaceID,
+              name: contentName.trim() || undefined,
               url: url.trim(),
             });
 
@@ -272,6 +275,23 @@ export function SaveContentForm() {
       <section className="rounded-md border bg-card p-5 shadow-sm">
         <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="space-y-5">
+            <label className="space-y-2 text-sm font-medium" htmlFor="content-name">
+              Content name
+              <input
+                className="h-11 w-full rounded-md border bg-background px-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+                disabled={isProcessing}
+                id="content-name"
+                onChange={(event) => setContentName(event.target.value)}
+                placeholder={
+                  inputType === "video"
+                    ? "Kafka cab-booking short"
+                    : "Blockchain unit 2 notes"
+                }
+                type="text"
+                value={contentName}
+              />
+            </label>
+
             {inputType === "video" ? (
               <label className="space-y-2 text-sm font-medium" htmlFor="content-url">
                 Paste a YouTube URL
@@ -305,7 +325,13 @@ export function SaveContentForm() {
                   className="sr-only"
                   disabled={isProcessing}
                   id="content-file"
-                  onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0] ?? null;
+                    setSelectedFile(file);
+                    if (file && !contentName.trim()) {
+                      setContentName(file.name);
+                    }
+                  }}
                   type="file"
                 />
               </label>

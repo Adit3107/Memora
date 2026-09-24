@@ -15,6 +15,7 @@ type Content struct {
 	ID           string      `json:"id"`
 	UserID       string      `json:"user_id"`
 	SpaceID      string      `json:"space_id"`
+	Name         string      `json:"name"`
 	Title        string      `json:"title"`
 	Description  string      `json:"description"`
 	Type         ContentType `json:"type"`

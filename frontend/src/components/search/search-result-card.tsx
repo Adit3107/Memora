@@ -11,7 +11,7 @@ type SearchResultCardProps = {
 
 export function SearchResultCard({ item }: SearchResultCardProps) {
   const Icon = iconForType[item.content_type];
-  const href = `/app/library/${item.content_id}?chunk=${item.chunk_id}`;
+  const href = `/app/library/${item.content_id}`;
   const sourceLabel = sourceLabelForResult(item);
 
   return (
@@ -38,27 +38,17 @@ export function SearchResultCard({ item }: SearchResultCardProps) {
               {contentTypeLabels[item.content_type]}
             </span>
             <span className="text-xs text-muted-foreground">{sourceLabel}</span>
-            <span className="text-xs text-muted-foreground">
-              chunk {item.chunk_index + 1}
-            </span>
           </div>
           <div>
             <h2 className="text-base font-semibold leading-6">{item.title}</h2>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
               {item.text}
             </p>
-            <p className="mt-2 text-xs leading-5 text-muted-foreground">
-              Returned from {sourceReference(item)} because this stored chunk matched
-              the search query.
-            </p>
           </div>
           <TagList tags={item.tags} />
         </div>
         <div className="flex flex-wrap gap-2 sm:block sm:text-right">
           <p className="text-sm font-medium">{scoreLabel(item.score)}</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {sourceReference(item)}
-          </p>
         </div>
       </article>
     </Link>
@@ -76,16 +66,6 @@ function scoreLabel(score: number) {
   return `${Math.round(score * 100)}% match`;
 }
 
-function sourceReference(item: SearchResult) {
-  if (item.start_seconds !== undefined) {
-    return `starts at ${formatSeconds(item.start_seconds)}`;
-  }
-  if (item.page_index !== undefined) {
-    return `page ${item.page_index}`;
-  }
-  return item.source_type;
-}
-
 function sourceLabelForResult(item: SearchResult) {
   if (item.source_type === "video") {
     return "Video";
@@ -94,10 +74,4 @@ function sourceLabelForResult(item: SearchResult) {
     return "Document";
   }
   return item.source_type;
-}
-
-function formatSeconds(seconds: number) {
-  const minutes = Math.floor(seconds / 60);
-  const remaining = Math.floor(seconds % 60);
-  return `${minutes}:${remaining.toString().padStart(2, "0")}`;
 }

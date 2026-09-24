@@ -16,6 +16,7 @@ type IngestionHandler struct {
 type ingestURLRequest struct {
 	UserID  string `json:"user_id"`
 	SpaceID string `json:"space_id"`
+	Name    string `json:"name"`
 	URL     string `json:"url"`
 }
 
@@ -33,6 +34,7 @@ func (h *IngestionHandler) IngestURL(c *gin.Context) {
 	result, err := h.service.IngestURL(c.Request.Context(), services.IngestURLInput{
 		UserID:  req.UserID,
 		SpaceID: req.SpaceID,
+		Name:    req.Name,
 		URL:     req.URL,
 	})
 	if err != nil {
@@ -62,6 +64,7 @@ func (h *IngestionHandler) IngestFile(c *gin.Context) {
 	result, err := h.service.IngestFile(c.Request.Context(), services.IngestFileInput{
 		UserID:      userID,
 		SpaceID:     spaceID,
+		Name:        c.PostForm("name"),
 		FileName:    header.Filename,
 		ContentType: contentType,
 		Body:        file,

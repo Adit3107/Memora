@@ -15,6 +15,7 @@ export type BackendContent = {
 	id: string;
 	user_id: string;
 	space_id: string;
+	name?: string;
 	title: string;
 	description: string;
 	type: ContentType;
@@ -48,6 +49,7 @@ export type ContentWithTags = {
 export type IngestURLRequest = {
   user_id: string;
   space_id: string;
+  name?: string;
   url: string;
 };
 
@@ -76,6 +78,7 @@ export type SearchRequest = {
 	query: string;
 	mode?: SearchMode;
 	space_id?: string;
+	content_ids?: string[];
 	content_type?: ContentType;
 	source_type?: string;
 	tag_ids?: string[];
@@ -109,6 +112,41 @@ export type SearchResponse = {
 	query: string;
 	total: number;
 	results: SearchResult[];
+};
+
+export type RAGScope =
+	| { type: "library" }
+	| { type: "content"; content_id: string }
+	| { type: "selected_sources"; content_ids: string[] };
+
+export type RAGMessage = {
+	role: "user" | "assistant";
+	content: string;
+};
+
+export type RAGCitation = {
+	content_id: string;
+	title: string;
+	type: ContentType;
+	source_url?: string;
+	page?: number;
+	timestamp?: {
+		start: number;
+		end?: number;
+	};
+};
+
+export type RAGResponse = {
+	answer: string;
+	citations: RAGCitation[];
+};
+
+export type RAGRequest = {
+	user_id: string;
+	question: string;
+	scope: RAGScope;
+	history?: RAGMessage[];
+	top_k?: number;
 };
 
 type APIResponse<T> = {
@@ -155,6 +193,17 @@ export async function getContent(id: string): Promise<BackendContent> {
 export async function listSpaces(): Promise<BackendSpace[]> {
 	return apiJSON<BackendSpace[]>("/spaces", {
 		cache: "no-store",
+	});
+}
+
+export async function createSpace(payload: {
+	user_id: string;
+	name: string;
+	description: string;
+}): Promise<BackendSpace> {
+	return apiJSON<BackendSpace>("/spaces", {
+		method: "POST",
+		body: JSON.stringify(payload),
 	});
 }
 
@@ -218,11 +267,15 @@ export async function ingestURL(
 export async function ingestFile(payload: {
 	user_id: string;
 	space_id: string;
+	name?: string;
 	file: File;
 }): Promise<IngestResult> {
 	const formData = new FormData();
 	formData.append("user_id", payload.user_id);
 	formData.append("space_id", payload.space_id);
+	if (payload.name?.trim()) {
+		formData.append("name", payload.name.trim());
+	}
 	formData.append("file", payload.file);
 
 	const response = await fetch(`${API_BASE_URL}/ingestion/file`, {
@@ -242,6 +295,7 @@ export async function ingestFileWithProgress(
 	payload: {
 		user_id: string;
 		space_id: string;
+		name?: string;
 		file: File;
 	},
 	onProgress: (progress: number) => void
@@ -249,6 +303,9 @@ export async function ingestFileWithProgress(
 	const formData = new FormData();
 	formData.append("user_id", payload.user_id);
 	formData.append("space_id", payload.space_id);
+	if (payload.name?.trim()) {
+		formData.append("name", payload.name.trim());
+	}
 	formData.append("file", payload.file);
 
 	return new Promise((resolve, reject) => {
@@ -311,6 +368,17 @@ export async function searchMemora(
 		method: "POST",
 		body: JSON.stringify(payload),
 	});
+}
+
+export async function askMemora(payload: RAGRequest): Promise<RAGResponse> {
+	return apiJSON<RAGResponse>("/rag", {
+		method: "POST",
+		body: JSON.stringify(payload),
+	});
+}
+
+export function displayContentName(item: BackendContent): string {
+	return item.name?.trim() || item.title;
 }
 
 // Why this file exists:

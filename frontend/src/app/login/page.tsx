@@ -69,10 +69,7 @@ function AuthShell({
     <main className="memora-landing grid min-h-screen lg:grid-cols-[1.05fr_0.95fr]">
       <section className="landing-shell hidden border-r bg-card/70 p-10 backdrop-blur lg:flex lg:flex-col lg:justify-between">
         <Link className="flex items-center gap-3 font-semibold" href="/">
-          <span className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            M
-          </span>
-          MEMORA
+          <span className="memora-wordmark text-2xl">Memora</span>
         </Link>
         <div className="max-w-lg">
           <div className="mb-8 grid grid-cols-2 gap-3">

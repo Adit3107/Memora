@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
 from typing import Any
+from urllib.parse import quote_plus
+from urllib.request import Request, urlopen
 
 from app.models.extraction import TranscriptSegment, YouTubeTranscriptResponse
 
@@ -34,16 +37,20 @@ def extract_youtube_transcript(url: str) -> YouTubeTranscriptResponse:
     if not transcript or not transcript_text:
         return _failure("youtube transcript is unavailable")
 
+    title, title_metadata = _youtube_oembed_title(url)
+    metadata = {
+        "youtube_transcript_api": "true",
+        "transcript_word_count": str(len(transcript_text.split())),
+    }
+    metadata.update(title_metadata)
+
     return YouTubeTranscriptResponse(
         success=True,
-        title="",
+        title=title,
         transcript_text=transcript_text,
         combined_text=transcript_text,
         transcript=transcript,
-        metadata={
-            "youtube_transcript_api": "true",
-            "transcript_word_count": str(len(transcript_text.split())),
-        },
+        metadata=metadata,
     )
 
 
@@ -78,6 +85,23 @@ def _youtube_transcript_api() -> Any:
     import youtube_transcript_api
 
     return youtube_transcript_api
+
+
+def _youtube_oembed_title(url: str) -> tuple[str, dict[str, str]]:
+    request_url = f"https://www.youtube.com/oembed?format=json&url={quote_plus(url.strip())}"
+    request = Request(request_url, headers={"User-Agent": "Memora/1.0"})
+    try:
+        with urlopen(request, timeout=5) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except Exception:
+        return "", {}
+
+    title = _clean_text(payload.get("title", ""))
+    metadata: dict[str, str] = {}
+    author = _clean_text(payload.get("author_name", ""))
+    if author:
+        metadata["channel"] = author
+    return title, metadata
 
 
 def _clean_text(value: str) -> str:
