@@ -20,13 +20,16 @@ func RegisterRoutes(router *gin.Engine, db *sql.DB, cfg config.Config) {
 	ingestionRepo := repository.NewPostgresIngestionRepository(db, cfg.EmbeddingDimension)
 	searchRepo := repository.NewPostgresSearchRepository(db)
 
-	userHandler := handlers.NewUserHandler(services.NewUserService(userRepo))
-	spaceHandler := handlers.NewSpaceHandler(services.NewSpaceService(spaceRepo))
+	userService := services.NewUserService(userRepo)
+	spaceService := services.NewSpaceService(spaceRepo)
+	userHandler := handlers.NewUserHandler(userService, spaceService)
+	spaceHandler := handlers.NewSpaceHandler(spaceService, userService)
 	contentTagService := services.NewContentTagService(contentRepo, tagRepo, contentTagRepo)
-	contentHandler := handlers.NewContentHandler(services.NewContentService(contentRepo), contentTagService)
+	summaryService := services.NewSummaryService(db, cfg.GeminiAPIKey, cfg.GeminiModel)
+	contentHandler := handlers.NewContentHandler(services.NewContentService(contentRepo), contentTagService, summaryService)
 	tagHandler := handlers.NewTagHandler(services.NewTagService(tagRepo, contentTagRepo), contentTagService)
 	contentTagHandler := handlers.NewContentTagHandler(contentTagService)
-	ingestionHandler := handlers.NewIngestionHandler(services.NewIngestionService(contentRepo, spaceRepo, ingestionRepo, cfg.AIServiceURL, cfg.EmbeddingDimension, cfg.EmbeddingMaxConcurrency))
+	ingestionHandler := handlers.NewIngestionHandler(services.NewIngestionService(contentRepo, spaceRepo, ingestionRepo, cfg.AIServiceURL, cfg.EmbeddingDimension, cfg.EmbeddingMaxConcurrency), userService)
 	searchService := services.NewSearchService(searchRepo, cfg.AIServiceURL, cfg.EmbeddingDimension)
 	searchHandler := handlers.NewSearchHandler(searchService)
 	// === PAUSED FEATURE: RAG Service (Put on hold for upcoming release) ===
@@ -48,6 +51,7 @@ func RegisterRoutes(router *gin.Engine, db *sql.DB, cfg config.Config) {
 
 	users := api.Group("/users")
 	users.POST("", userHandler.Create)
+	users.POST("/sync", userHandler.Sync)
 	users.GET("", userHandler.List)
 	users.GET("/:id", userHandler.GetByID)
 	users.PUT("/:id", userHandler.Update)
@@ -69,6 +73,7 @@ func RegisterRoutes(router *gin.Engine, db *sql.DB, cfg config.Config) {
 	content.PUT("/:id/tags", contentTagHandler.SetTags)
 	content.GET("/:id/tags", contentTagHandler.ListTags)
 	content.DELETE("/:id/tags/:tagID", contentTagHandler.RemoveTag)
+	content.GET("/:id/summary", contentHandler.GetSummary)
 
 	ingestionRoutes := api.Group("/ingestion")
 	ingestionRoutes.POST("/url", ingestionHandler.IngestURL)

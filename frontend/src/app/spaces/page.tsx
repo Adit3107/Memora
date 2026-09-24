@@ -1,5 +1,6 @@
 "use client";
 
+import { useUser } from "@clerk/nextjs";
 import { FormEvent, useEffect, useState } from "react";
 import { BookOpen, Loader2, Plus } from "lucide-react";
 
@@ -11,11 +12,11 @@ import { Button } from "@/components/ui/button";
 import {
   createSpace,
   listSpaces,
-  MEMORA_DEMO_USER_ID,
   type BackendSpace,
 } from "@/lib/api";
 
 export default function SpacesPage() {
+  const { user } = useUser();
   const [spaces, setSpaces] = useState<BackendSpace[]>([]);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -27,7 +28,7 @@ export default function SpacesPage() {
     setIsLoading(true);
     setError("");
     try {
-      setSpaces(await listSpaces());
+      setSpaces(await listSpaces(user?.id));
     } catch {
       setError("Could not load spaces. Check that the Go backend is running.");
     } finally {
@@ -36,9 +37,9 @@ export default function SpacesPage() {
   }
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadSpaces();
-  }, []);
+    if (user?.id) void loadSpaces();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   async function handleCreateSpace(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -47,20 +48,29 @@ export default function SpacesPage() {
       setError("Add a Space name before creating it.");
       return;
     }
+    if (!user?.id) {
+      setError("Not signed in — please refresh.");
+      return;
+    }
 
     setIsSaving(true);
     setError("");
     try {
       const created = await createSpace({
-        user_id: MEMORA_DEMO_USER_ID,
+        user_id: user.id,
         name: trimmedName,
         description: description.trim(),
       });
       setSpaces((current) => [created, ...current]);
+      window.dispatchEvent(new Event("mindshelf:spaces-changed"));
       setName("");
       setDescription("");
-    } catch {
-      setError("Space could not be created. Check the backend and try again.");
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Space could not be created. Check the backend and try again."
+      );
     } finally {
       setIsSaving(false);
     }

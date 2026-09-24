@@ -6,8 +6,8 @@ export default function SavePage() {
     <div className="space-y-8">
       <PageHeader
         eyebrow="Save content"
-        title="Save anything into Memora."
-        description="Add a YouTube URL or upload a document through the Go backend ingestion pipeline."
+        title="Save anything into Mindshelf."
+        description="Add an Instagram Reel, Facebook Reel, YouTube URL, or document into your intelligent shelf."
       />
 
       <SaveContentForm />

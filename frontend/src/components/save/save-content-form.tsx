@@ -19,13 +19,12 @@ import {
   ingestURL,
   listSpaces,
   listTags,
-  MEMORA_DEMO_SPACE_ID,
-  MEMORA_DEMO_USER_ID,
   setContentTags,
   type BackendSpace,
   type BackendTag,
   type IngestResult,
 } from "@/lib/api";
+import { useUser } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
 
 import { Button } from "../ui/button";
@@ -62,12 +61,13 @@ const processingStages = [
 ];
 
 export function SaveContentForm() {
+  const { user } = useUser();
   const [inputType, setInputType] = useState<InputType>("video");
   const [contentName, setContentName] = useState("");
   const [url, setUrl] = useState("");
   const [spaces, setSpaces] = useState<BackendSpace[]>([]);
   const [availableTags, setAvailableTags] = useState<BackendTag[]>([]);
-  const [spaceID, setSpaceID] = useState(MEMORA_DEMO_SPACE_ID);
+  const [spaceID, setSpaceID] = useState("");
   const [selectedTagNames, setSelectedTagNames] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -102,15 +102,15 @@ export function SaveContentForm() {
 
   async function loadFormData() {
     try {
-      const [spaceRows, tagRows] = await Promise.all([listSpaces(), listTags()]);
+      const userId = user?.id;
+      const [spaceRows, tagRows] = await Promise.all([
+        listSpaces(userId),
+        listTags(userId),
+      ]);
       setSpaces(spaceRows);
       setAvailableTags(tagRows);
-      setSpaceID(
-        spaceRows.find((space) => space.id === MEMORA_DEMO_SPACE_ID)?.id ??
-          spaceRows[0]?.id ??
-          MEMORA_DEMO_SPACE_ID
-      );
-      setSelectedTagNames(tagRows.slice(0, 2).map((tag) => tag.name));
+      setSpaceID(spaceRows[0]?.id ?? "");
+      setSelectedTagNames([]);
     } catch {
       setError("Could not load spaces and tags. Check that the Go backend is running.");
     }
@@ -118,8 +118,9 @@ export function SaveContentForm() {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadFormData();
-  }, []);
+    if (user) void loadFormData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   useEffect(() => {
     if (!isProcessing) {
@@ -187,7 +188,7 @@ export function SaveContentForm() {
         inputType === "document" && selectedFile
           ? await ingestFileWithProgress(
               {
-                user_id: MEMORA_DEMO_USER_ID,
+                user_id: user?.id ?? "",
                 space_id: spaceID,
                 name: contentName.trim() || undefined,
                 file: selectedFile,
@@ -195,7 +196,7 @@ export function SaveContentForm() {
               setUploadProgress
             )
           : await ingestURL({
-              user_id: MEMORA_DEMO_USER_ID,
+              user_id: user?.id ?? "",
               space_id: spaceID,
               name: contentName.trim() || undefined,
               url: url.trim(),
@@ -229,18 +230,19 @@ export function SaveContentForm() {
   }
 
   async function applyTags(contentID: string, tagNames: string[]) {
-    const existingTags = await listTags();
+    const userId = user?.id ?? "";
+    const existingTags = await listTags(userId);
     const ensuredTags = await Promise.all(
       tagNames.map(async (tagName) => {
         const existing = existingTags.find(
           (tag) =>
             tag.name.toLowerCase() === tagName.toLowerCase() &&
-            tag.user_id === MEMORA_DEMO_USER_ID
+            tag.user_id === userId
         );
         return (
           existing ??
           createTag({
-            user_id: MEMORA_DEMO_USER_ID,
+            user_id: userId,
             name: tagName,
           })
         );
@@ -250,7 +252,7 @@ export function SaveContentForm() {
       contentID,
       ensuredTags.map((tag) => tag.id)
     );
-    setAvailableTags(await listTags());
+    setAvailableTags(await listTags(userId));
   }
 
   async function pollIngestion(ingestionID: string) {
@@ -312,8 +314,8 @@ export function SaveContentForm() {
                 onChange={(event) => setContentName(event.target.value)}
                 placeholder={
                   inputType === "video"
-                    ? "Kafka cab-booking short"
-                    : "Blockchain unit 2 notes"
+                    ? "e.g. System Design in 60s"
+                    : "e.g. Distributed Systems Notes"
                 }
                 type="text"
                 value={contentName}
@@ -398,7 +400,7 @@ export function SaveContentForm() {
                 value={spaceID}
               >
                 {spaces.length === 0 ? (
-                  <option value={MEMORA_DEMO_SPACE_ID}>Demo Space</option>
+                  <option value="">Loading spaces...</option>
                 ) : (
                   spaces.map((space) => (
                     <option key={space.id} value={space.id}>
@@ -411,6 +413,18 @@ export function SaveContentForm() {
 
             <div className="space-y-3">
               <p className="text-sm font-medium">Tags</p>
+              {selectedTagNames.length > 0 ? (
+                <div className="flex flex-wrap gap-2" aria-label="Selected tags">
+                  {selectedTagNames.map((tag) => (
+                    <span
+                      className="rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary"
+                      key={tag}
+                    >
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
               <div className="flex flex-wrap gap-2">
                 {availableTags.map((tag) => {
                   const isActive = selectedTagNames.includes(tag.name);
@@ -537,7 +551,7 @@ export function SaveContentForm() {
           <div className="mt-5 flex gap-3 rounded-md border bg-background p-4 text-sm">
             <CheckCircle2 className="size-5 shrink-0 text-muted-foreground" />
             <div className="space-y-1 leading-6 text-muted-foreground">
-              <p className="font-medium text-foreground">Saved to Memora</p>
+              <p className="font-medium text-foreground">Saved to Mindshelf</p>
               <p>
                 &quot;{result.title}&quot; is {result.status} with {result.chunk_count} searchable
                 chunk{result.chunk_count === 1 ? "" : "s"}.

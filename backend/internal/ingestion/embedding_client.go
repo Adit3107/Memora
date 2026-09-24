@@ -32,7 +32,7 @@ type PythonEmbeddingClient struct {
 
 func NewPythonEmbeddingClient(baseURL string, client HTTPClient, expectedDimension int) *PythonEmbeddingClient {
 	if client == nil {
-		client = &http.Client{Timeout: 60 * time.Second}
+		client = &http.Client{Timeout: 120 * time.Second}
 	}
 	if expectedDimension <= 0 {
 		expectedDimension = DefaultEmbeddingDimension

@@ -78,6 +78,43 @@ func (r *SpaceRepository) List() ([]models.Space, error) {
 	return spaces, nil
 }
 
+func (r *SpaceRepository) ListByUserID(userID string) ([]models.Space, error) {
+	ctx := context.Background()
+
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, user_id, name, description, created_at, updated_at
+		FROM spaces
+		WHERE user_id = $1
+		ORDER BY created_at DESC
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	spaces := make([]models.Space, 0)
+	for rows.Next() {
+		var space models.Space
+		if err := rows.Scan(
+			&space.ID,
+			&space.UserID,
+			&space.Name,
+			&space.Description,
+			&space.CreatedAt,
+			&space.UpdatedAt,
+		); err != nil {
+			continue
+		}
+		spaces = append(spaces, space)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return spaces, nil
+}
+
 func (r *SpaceRepository) GetByID(id string) (models.Space, error) {
 	ctx := context.Background()
 

@@ -65,6 +65,33 @@ func (r *TagRepository) List() ([]models.Tag, error) {
 	return tags, nil
 }
 
+func (r *TagRepository) ListByUserID(userID string) ([]models.Tag, error) {
+	ctx := context.Background()
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, user_id, name, created_at
+		FROM tags
+		WHERE user_id = $1
+		ORDER BY name ASC
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	tags := make([]models.Tag, 0)
+	for rows.Next() {
+		var tag models.Tag
+		if err := rows.Scan(&tag.ID, &tag.UserID, &tag.Name, &tag.CreatedAt); err != nil {
+			return nil, err
+		}
+		tags = append(tags, tag)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return tags, nil
+}
+
 func (r *TagRepository) GetByID(id string) (models.Tag, error) {
 	ctx := context.Background()
 

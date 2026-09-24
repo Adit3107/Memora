@@ -3,6 +3,7 @@ import { JetBrains_Mono, Manrope, Space_Grotesk } from "next/font/google";
 import type { ReactNode } from "react";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { UserSync } from "@/components/auth/user-sync";
 
 import "./globals.css";
 
@@ -24,9 +25,11 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
+import { ClerkProvider } from "@clerk/nextjs";
+
 export const metadata: Metadata = {
-  title: "Memora",
-  description: "Your second memory.",
+  title: "Mindshelf",
+  description: "Your second memory - Intelligent Video & Document Shelf.",
 };
 
 type RootLayoutProps = {
@@ -35,13 +38,16 @@ type RootLayoutProps = {
 
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
-    <html
-      lang="en"
-      className={`${manrope.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full">
-        <AppShell>{children}</AppShell>
-      </body>
-    </html>
+    <ClerkProvider>
+      <html
+        lang="en"
+        className={`${manrope.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      >
+        <body className="min-h-full">
+          <UserSync />
+          <AppShell>{children}</AppShell>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

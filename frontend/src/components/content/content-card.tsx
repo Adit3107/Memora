@@ -1,4 +1,4 @@
-import { ExternalLink, Play } from "lucide-react";
+import { ExternalLink, FileText, Image as ImageIcon, Newspaper, Play, Trash2, Video } from "lucide-react";
 import Link from "next/link";
 
 import { contentTypeLabels } from "@/data/content";
@@ -6,13 +6,22 @@ import type { SavedContentItem } from "@/types/content";
 
 import { TagList } from "./tag-list";
 import { FacebookIcon, InstagramIcon } from "@/components/ui/platform-icons";
+import { deleteContent } from "@/lib/api";
 
 type ContentCardProps = {
   item: SavedContentItem;
+  onDeleted?: (contentID: string) => void;
 };
 
-export function ContentCard({ item }: ContentCardProps) {
-  const Icon = item.icon;
+const iconForType = {
+  video: Video,
+  document: FileText,
+  article: Newspaper,
+  image: ImageIcon,
+};
+
+export function ContentCard({ item, onDeleted }: ContentCardProps) {
+  const Icon = (item.type && iconForType[item.type]) || Video;
   const href = item.id ? `/app/library/${item.id}` : `/app/library/${item.slug}`;
   const thumbnail = item.thumbnailUrl ?? youtubeThumbnailFromURL(item.sourceUrl);
   const visibleTags = item.tags.slice(0, 3);
@@ -51,6 +60,29 @@ export function ContentCard({ item }: ContentCardProps) {
             <span className="absolute left-3 top-3 rounded-full border bg-card px-2 py-1 text-xs font-medium">
               {item.status}
             </span>
+          ) : null}
+          {item.id ? (
+            <button
+              aria-label={`Delete ${item.title}`}
+              className="absolute right-3 top-3 inline-flex size-9 items-center justify-center rounded-md border border-destructive/40 bg-card/90 text-destructive shadow-sm transition hover:bg-destructive hover:text-destructive-foreground"
+              onClick={async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (!window.confirm(`Delete "${item.title}"? This cannot be undone.`)) return;
+                try {
+                  const contentID = item.id;
+                  if (!contentID) return;
+                  await deleteContent(contentID);
+                  onDeleted?.(contentID);
+                } catch {
+                  window.alert("Content could not be deleted.");
+                }
+              }}
+              title="Delete content"
+              type="button"
+            >
+              <Trash2 className="size-4" />
+            </button>
           ) : null}
         </div>
 

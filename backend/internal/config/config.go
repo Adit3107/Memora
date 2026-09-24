@@ -1,9 +1,11 @@
 package config
 
 import (
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -41,10 +43,8 @@ func Load() Config {
 	_ = godotenv.Load("backend/.env")
 
 	port := getEnv("PORT", "8080")
-	aiURL := getEnv("AI_SERVICE_URL", "http://127.0.0.1:8001")
-	// On Windows, localhost can resolve to IPv6 [::1] which fails if the AI service
-	// is listening on IPv4 (0.0.0.0 / 127.0.0.1). Normalize to 127.0.0.1.
-	aiURL = strings.Replace(aiURL, "localhost", "127.0.0.1", -1)
+	aiURL := getEnv("AI_SERVICE_URL", "http://127.0.0.1:8000")
+	aiURL = detectAIServiceURL(aiURL)
 
 	return Config{
 		Port:                    port,
@@ -103,6 +103,38 @@ func getEnvBool(key string, fallback bool) bool {
 	}
 
 	return parsed
+}
+
+func detectAIServiceURL(preferred string) string {
+	cleaned := strings.TrimRight(strings.TrimSpace(preferred), "/")
+	cleaned = strings.Replace(cleaned, "localhost", "127.0.0.1", -1)
+
+	client := &http.Client{Timeout: 500 * time.Millisecond}
+	resp, err := client.Get(cleaned + "/health")
+	if err == nil {
+		resp.Body.Close()
+		if resp.StatusCode == http.StatusOK {
+			return cleaned
+		}
+	}
+
+	alt := ""
+	if strings.Contains(cleaned, ":8001") {
+		alt = strings.Replace(cleaned, ":8001", ":8000", 1)
+	} else if strings.Contains(cleaned, ":8000") {
+		alt = strings.Replace(cleaned, ":8000", ":8001", 1)
+	}
+
+	if alt != "" {
+		if respAlt, errAlt := client.Get(alt + "/health"); errAlt == nil {
+			respAlt.Body.Close()
+			if respAlt.StatusCode == http.StatusOK {
+				return alt
+			}
+		}
+	}
+
+	return cleaned
 }
 
 // Why this file exists:

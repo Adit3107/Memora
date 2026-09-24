@@ -48,6 +48,10 @@ func (s *TagService) List() ([]models.Tag, error) {
 	return s.repo.List()
 }
 
+func (s *TagService) ListByUserID(userID string) ([]models.Tag, error) {
+	return s.repo.ListByUserID(strings.TrimSpace(userID))
+}
+
 func (s *TagService) GetByID(id string) (models.Tag, error) {
 	return s.repo.GetByID(id)
 }

@@ -13,6 +13,7 @@ import (
 type ContentHandler struct {
 	service           *services.ContentService
 	contentTagService *services.ContentTagService
+	summaryService    *services.SummaryService
 }
 
 type contentRequest struct {
@@ -26,10 +27,11 @@ type contentRequest struct {
 	ThumbnailURL *string            `json:"thumbnail_url"`
 }
 
-func NewContentHandler(service *services.ContentService, contentTagService *services.ContentTagService) *ContentHandler {
+func NewContentHandler(service *services.ContentService, contentTagService *services.ContentTagService, summaryService *services.SummaryService) *ContentHandler {
 	return &ContentHandler{
 		service:           service,
 		contentTagService: contentTagService,
+		summaryService:    summaryService,
 	}
 }
 
@@ -50,7 +52,14 @@ func (h *ContentHandler) Create(c *gin.Context) {
 }
 
 func (h *ContentHandler) List(c *gin.Context) {
-	content, err := h.service.List()
+	userID := c.Query("user_id")
+	var content []models.Content
+	var err error
+	if userID != "" {
+		content, err = h.service.ListByUserID(userID)
+	} else {
+		content, err = h.service.List()
+	}
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -97,6 +106,27 @@ func (h *ContentHandler) Delete(c *gin.Context) {
 		return
 	}
 	response.Success(c, http.StatusOK, "Content deleted", nil)
+}
+
+func (h *ContentHandler) GetSummary(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		response.Error(c, http.StatusBadRequest, "Content ID is required", "")
+		return
+	}
+
+	if h.summaryService == nil {
+		response.Error(c, http.StatusServiceUnavailable, "Summary service not configured", "")
+		return
+	}
+
+	summary, err := h.summaryService.GenerateContentSummary(c.Request.Context(), id)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, "Summary generated successfully", summary)
 }
 
 func toCreateContentInput(req contentRequest) services.CreateContentInput {

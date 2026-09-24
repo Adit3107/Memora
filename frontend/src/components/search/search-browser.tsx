@@ -1,6 +1,7 @@
 "use client";
 
 import { Search } from "lucide-react";
+import { useUser } from "@clerk/nextjs";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { EmptyState } from "@/components/content/empty-state";
@@ -8,7 +9,6 @@ import { ErrorState } from "@/components/feedback/error-state";
 import {
   listSpaces,
   listTags,
-  MEMORA_DEMO_USER_ID,
   searchMemora,
   type BackendSpace,
   type BackendTag,
@@ -42,6 +42,7 @@ const sourceTypeOptions = [
 ];
 
 export function SearchBrowser() {
+  const { user, isLoaded } = useUser();
   const [query, setQuery] = useState("");
   const [spaces, setSpaces] = useState<BackendSpace[]>([]);
   const [tags, setTags] = useState<BackendTag[]>([]);
@@ -58,7 +59,10 @@ export function SearchBrowser() {
 
   async function loadFilters() {
     try {
-      const [spaceRows, tagRows] = await Promise.all([listSpaces(), listTags()]);
+      const [spaceRows, tagRows] = await Promise.all([
+        listSpaces(user?.id),
+        listTags(user?.id),
+      ]);
       setSpaces(spaceRows);
       setTags(tagRows);
     } catch {
@@ -68,8 +72,9 @@ export function SearchBrowser() {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadFilters();
-  }, []);
+    if (isLoaded) void loadFilters();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, user?.id]);
 
   const visibleResults = useMemo(() => dedupeByContent(results), [results]);
 
@@ -88,7 +93,7 @@ export function SearchBrowser() {
     setError("");
     try {
       const response = await searchMemora({
-        user_id: MEMORA_DEMO_USER_ID,
+        user_id: user?.id ?? "",
         space_id: spaceID === "all" ? undefined : spaceID,
         query: trimmedQuery,
         mode,
@@ -211,7 +216,7 @@ export function SearchBrowser() {
         </div>
 
         <button
-          className="h-10 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+          className="h-10 w-full rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
           disabled={isSearching || !query.trim()}
           type="submit"
         >

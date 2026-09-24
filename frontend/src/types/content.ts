@@ -1,5 +1,3 @@
-import type { LucideIcon } from "lucide-react";
-
 export type ContentType = "video" | "document" | "article" | "image";
 
 export type SavedContentItem = {
@@ -17,7 +15,6 @@ export type SavedContentItem = {
   spaceName: string;
   tags: string[];
   status?: string;
-  icon: LucideIcon;
   creator?: string;
   duration?: string;
   platform?: "youtube" | "instagram" | "facebook" | string;

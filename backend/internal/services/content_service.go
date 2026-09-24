@@ -47,6 +47,10 @@ func (s *ContentService) List() ([]models.Content, error) {
 	return s.repo.List()
 }
 
+func (s *ContentService) ListByUserID(userID string) ([]models.Content, error) {
+	return s.repo.ListByUserID(userID)
+}
+
 func (s *ContentService) GetByID(id string) (models.Content, error) {
 	return s.repo.GetByID(id)
 }

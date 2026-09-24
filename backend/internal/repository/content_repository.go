@@ -90,6 +90,37 @@ func (r *ContentRepository) List() ([]models.Content, error) {
 	return contents, nil
 }
 
+func (r *ContentRepository) ListByUserID(userID string) ([]models.Content, error) {
+	ctx := context.Background()
+
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, user_id, space_id, name, title, description, type,
+			source_url, thumbnail_url, created_at, updated_at
+		FROM content
+		WHERE user_id = $1
+		ORDER BY created_at DESC
+	`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	contents := make([]models.Content, 0)
+	for rows.Next() {
+		var content models.Content
+		if err := scanContent(rows, &content); err != nil {
+			return nil, err
+		}
+		contents = append(contents, content)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return contents, nil
+}
+
 func (r *ContentRepository) GetByID(id string) (models.Content, error) {
 	ctx := context.Background()
 

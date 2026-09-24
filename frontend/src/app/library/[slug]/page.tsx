@@ -1,4 +1,3 @@
-import { FileText, Image, Newspaper, Video } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { ContentDetail } from "@/components/content/content-detail";
@@ -20,12 +19,7 @@ type ContentDetailPageProps = {
   }>;
 };
 
-const iconForType = {
-  video: Video,
-  document: FileText,
-  article: Newspaper,
-  image: Image,
-};
+
 
 export default async function ContentDetailPage({
   params,
@@ -62,40 +56,45 @@ function toSavedContentItem(
     savedContent[0].detail;
 
   const platform = detectPlatform(item.source_url);
+  const meta = extractPlatformMetadata(item, platform);
+
+  const pipeline =
+    item.type === "video"
+      ? platform === "youtube"
+        ? "yt-dlp + Faster-Whisper Audio"
+        : "Whisper Audio + RapidOCR Vision"
+      : "Document Parser & Chunker";
 
   return {
     id: item.id,
     slug: item.id,
     title: displayContentName(item),
     type: item.type,
-    source: sourceLabel(item),
+    source: sourceLabel(item, platform),
     sourceUrl: item.source_url,
     thumbnailUrl: item.thumbnail_url,
-    description: item.description || "Saved to Memora and ready for retrieval.",
-    metadata: metadataLabel(item),
+    description: item.description || "Saved to Mindshelf and ready for retrieval.",
+    metadata: meta,
     dateLabel: formatDate(item.created_at),
     spaceSlug: item.space_id,
-    spaceName: space?.name ?? "Unknown space",
+    spaceName: space?.name ?? "Default Space",
     tags: tags.map((tag) => tag.name),
     status: "Ready",
-    icon: iconForType[item.type],
     platform,
     detail: {
       ...template,
       extractedTitle:
-        item.type === "video" ? "Transcript checkpoints" : "Extracted content",
-      extractedBody:
-        item.type === "video"
-          ? [
-              "Search results for this video include chunk numbers and timestamps when the backend has transcript timing.",
-              "Use the Search page to verify semantic, keyword, and hybrid retrieval against the stored transcript chunks.",
-            ]
-          : [
-              "Search results for this document include matching chunks and page references when the extractor provides page metadata.",
-              "Use the Search page to confirm that extracted text and embeddings are reaching PostgreSQL through the Go API.",
-            ],
-      referenceLabel: item.type === "video" ? "Source references" : "Document references",
-      references: [item.id, item.space_id],
+        item.type === "video" ? "AI Video Summary" : "AI Document Summary",
+      extractedBody: [
+        item.description || "Extracting key takeaways with Gemini AI...",
+      ],
+      referenceLabel: "Source & Provenance",
+      references: [
+        `Source: ${platform ? platform.toUpperCase() : "Document"}`,
+        `Space: ${space?.name ?? "General"}`,
+        `Pipeline: ${pipeline}`,
+        `Storage: PostgreSQL + pgvector`,
+      ],
     },
   };
 }
@@ -103,18 +102,53 @@ function toSavedContentItem(
 function detectPlatform(url?: string): "instagram" | "facebook" | "youtube" | undefined {
   if (!url) return undefined;
   const lower = url.toLowerCase();
-  if (lower.includes("instagram.com")) return "instagram";
-  if (lower.includes("facebook.com") || lower.includes("fb.watch")) return "facebook";
+  if (lower.includes("instagram.com") || lower.includes("instagr.am")) return "instagram";
+  if (lower.includes("facebook.com") || lower.includes("fb.watch") || lower.includes("fb.com"))
+    return "facebook";
   if (lower.includes("youtube.com") || lower.includes("youtu.be")) return "youtube";
   return undefined;
 }
 
-function sourceLabel(item: BackendContent) {
+function extractPlatformMetadata(
+  item: BackendContent,
+  platform?: "instagram" | "facebook" | "youtube"
+): string {
+  const url = item.source_url || "";
+
+  if (platform === "youtube") {
+    // For YouTube: Show the title
+    return item.title ? `Title: ${item.title}` : "YouTube Video";
+  }
+
+  if (platform === "instagram") {
+    // For Instagram: Show the Reel ID
+    const match = url.match(/\/(?:reel|p)\/([A-Za-z0-9_-]+)/i);
+    const reelId = match ? match[1] : "Reel";
+    return `Reel ID: ${reelId}`;
+  }
+
+  if (platform === "facebook") {
+    // For Facebook: Show the Reel/Video ID
+    const match =
+      url.match(/\/(?:reel|videos|watch\/?\?v=)([0-9]+)/i) ||
+      url.match(/[?&]v=([0-9]+)/i) ||
+      url.match(/\/reel\/([0-9a-zA-Z_-]+)/i);
+    const reelId = match ? match[1] : "Reel";
+    return `Reel ID: ${reelId}`;
+  }
+
+  return item.title || item.name || "Document";
+}
+
+function sourceLabel(
+  item: BackendContent,
+  platform?: "instagram" | "facebook" | "youtube"
+) {
   if (item.type === "video") {
-    const platform = detectPlatform(item.source_url);
     if (platform === "instagram") return "Instagram Reel";
     if (platform === "facebook") return "Facebook Reel";
-    return "YouTube";
+    if (platform === "youtube") return "YouTube Video";
+    return "Video";
   }
   if (item.type === "document") {
     return "Document";
@@ -123,16 +157,6 @@ function sourceLabel(item: BackendContent) {
     return "Image";
   }
   return "Article";
-}
-
-function metadataLabel(item: BackendContent) {
-  if (item.type === "video") {
-    return "Timestamp-aware transcript chunks";
-  }
-  if (item.type === "document") {
-    return "Page-aware document chunks";
-  }
-  return "Extracted chunks";
 }
 
 function formatDate(value: string) {

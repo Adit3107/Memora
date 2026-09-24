@@ -199,7 +199,7 @@ func (s *SearchService) hybridSearch(ctx context.Context, input SearchInput) ([]
 	wg.Wait()
 
 	if semanticErr != nil {
-		return nil, semanticErr
+		return keywordResults, nil
 	}
 	if keywordErr != nil {
 		return nil, keywordErr

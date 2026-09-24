@@ -49,10 +49,13 @@ class ReelServiceTests(unittest.TestCase):
     def test_extract_instagram_reel_with_whisper(self):
         with patch.object(reels, "_get_yt_dlp", return_value=FakeReelYDL):
             with patch.object(reels, "_get_whisper_model", return_value=FakeWhisperModel()):
-                with patch.object(reels, "_transcribe_audio_with_whisper", return_value=[
-                    reels.TranscriptSegment(start_seconds=0.0, end_seconds=5.0, text="Goroutines run concurrently in Go."),
-                    reels.TranscriptSegment(start_seconds=5.0, end_seconds=12.0, text="Use channels to pass data between them safely.")
-                ]):
+                with patch.object(reels, "_download_and_process_media", return_value=(
+                    [
+                        reels.TranscriptSegment(start_seconds=0.0, end_seconds=5.0, text="Goroutines run concurrently in Go."),
+                        reels.TranscriptSegment(start_seconds=5.0, end_seconds=12.0, text="Use channels to pass data between them safely.")
+                    ],
+                    []
+                )):
                     res = reels.extract_reel("https://www.instagram.com/reel/C8abc123/")
 
         self.assertTrue(res.success)
@@ -64,9 +67,46 @@ class ReelServiceTests(unittest.TestCase):
         self.assertEqual(res.metadata["source_platform"], "instagram")
         self.assertEqual(res.metadata["uploader"], "gopher_daily")
 
+    def test_extract_reel_with_whisper_and_ocr_fusion(self):
+        """Test speech + unique screen text fused into single timeline."""
+        with patch.object(reels, "_get_yt_dlp", return_value=FakeReelYDL):
+            with patch.object(reels, "_download_and_process_media", return_value=(
+                [
+                    reels.TranscriptSegment(start_seconds=0.0, end_seconds=5.0, text="Here is how to create a Go module."),
+                ],
+                [
+                    reels.TranscriptSegment(start_seconds=0.5, end_seconds=4.0, text="go mod init memora-app"),
+                ]
+            )):
+                res = reels.extract_reel("https://www.instagram.com/reel/C8abc123/")
+
+        self.assertTrue(res.success)
+        self.assertEqual(len(res.transcript), 1)
+        expected = "Here is how to create a Go module. [Screen: go mod init memora-app]"
+        self.assertEqual(res.transcript[0].text, expected)
+        self.assertEqual(res.metadata["has_audio_speech"], "true")
+        self.assertEqual(res.metadata["has_ocr_text"], "true")
+
+    def test_extract_reel_with_no_audio_but_ocr(self):
+        """Test silent Reel with on-screen text preserved."""
+        with patch.object(reels, "_get_yt_dlp", return_value=FakeReelYDL):
+            with patch.object(reels, "_download_and_process_media", return_value=(
+                [],
+                [
+                    reels.TranscriptSegment(start_seconds=0.0, end_seconds=3.0, text="Docker Tips & Tricks"),
+                ]
+            )):
+                res = reels.extract_reel("https://www.instagram.com/reel/C8abc123/")
+
+        self.assertTrue(res.success)
+        self.assertEqual(len(res.transcript), 1)
+        self.assertEqual(res.transcript[0].text, "[Screen: Docker Tips & Tricks]")
+        self.assertEqual(res.metadata["has_audio_speech"], "false")
+        self.assertEqual(res.metadata["has_ocr_text"], "true")
+
     def test_extract_facebook_reel_fallback_text(self):
         with patch.object(reels, "_get_yt_dlp", return_value=FakeReelYDL):
-            with patch.object(reels, "_transcribe_audio_with_whisper", return_value=[]):
+            with patch.object(reels, "_download_and_process_media", return_value=([], [])):
                 res = reels.extract_reel("https://www.facebook.com/reel/9876543210")
 
         self.assertTrue(res.success)
