@@ -249,12 +249,14 @@ export default function LoginPage() {
                 <span>Continue with Google</span>
               </button>
 
+              {/*
               <Link
                 className="flex h-10 w-full items-center justify-center rounded-lg border border-border/70 bg-secondary/40 text-sm font-medium text-foreground transition hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 href="/app"
               >
                 Continue as Demo User
               </Link>
+              */}
             </div>
 
             <p className="mt-6 text-center text-xs text-muted-foreground">
