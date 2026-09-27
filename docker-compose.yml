@@ -1,0 +1,55 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+    image: mindshelf-frontend
+    container_name: mindshelf-frontend
+    env_file:
+      - ./frontend/.env
+    ports:
+      - "${FRONTEND_PORT:-80}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+    image: mindshelf-backend
+    container_name: mindshelf-backend
+    env_file:
+      - ./backend/.env
+    environment:
+      AI_SERVICE_URL: http://ai-service:8001
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      ai-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  ai-service:
+    build:
+      context: ./ai-service
+    image: mindshelf-ai
+    container_name: mindshelf-ai
+    env_file:
+      - ./ai-service/.env
+    expose:
+      - "8001"
+    ports:
+      - "127.0.0.1:${AI_SERVICE_PORT:-8001}:8001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=3).read()"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
