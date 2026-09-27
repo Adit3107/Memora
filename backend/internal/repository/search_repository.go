@@ -88,7 +88,7 @@ func (r *SearchRepository) SemanticSearch(ctx context.Context, filters SearchFil
 			c.source_url,
 			c.thumbnail_url,
 			cc.text,
-			GREATEST(0, 1 - (cc.embedding <=> $1::vector)) AS score,
+			GREATEST(0, 1 - (cc.jina_embedding <=> $1::vector)) AS score,
 			cc.page_index,
 			cc.start_seconds,
 			cc.end_seconds,
@@ -98,9 +98,9 @@ func (r *SearchRepository) SemanticSearch(ctx context.Context, filters SearchFil
 			%s
 		FROM content_chunks cc
 		JOIN content c ON c.id = cc.content_id
-		WHERE cc.embedding IS NOT NULL
+		WHERE cc.jina_embedding IS NOT NULL
 			%s
-		ORDER BY cc.embedding <=> $1::vector
+		ORDER BY cc.jina_embedding <=> $1::vector
 		LIMIT $%d OFFSET $%d
 	`, tagsSubquery(), whereSQL, limitPlaceholder, offsetPlaceholder), args...)
 }

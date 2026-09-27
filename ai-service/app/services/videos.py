@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from typing import Any
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlparse
 from urllib.request import Request, urlopen
 
 from app.models.extraction import TranscriptSegment, YouTubeTranscriptResponse
@@ -20,7 +20,7 @@ def extract_youtube_transcript(url: str) -> YouTubeTranscriptResponse:
         track = _pick_youtube_track(transcript_list)
         fetched = track.fetch()
     except Exception:
-        return _failure("youtube transcript is unavailable")
+        return _short_whisper_fallback(url) or _failure("youtube transcript is unavailable")
 
     transcript: list[TranscriptSegment] = []
     texts: list[str] = []
@@ -35,7 +35,7 @@ def extract_youtube_transcript(url: str) -> YouTubeTranscriptResponse:
 
     transcript_text = _clean_text(" ".join(texts))
     if not transcript or not transcript_text:
-        return _failure("youtube transcript is unavailable")
+        return _short_whisper_fallback(url) or _failure("youtube transcript is unavailable")
 
     title, title_metadata = _youtube_oembed_title(url)
     metadata = {
@@ -67,7 +67,7 @@ def _pick_youtube_track(transcript_list: Any) -> Any:
 
 
 def _youtube_video_id(url: str) -> str:
-    from urllib.parse import parse_qs, urlparse
+    from urllib.parse import parse_qs
 
     parsed = urlparse(url.strip())
     host = parsed.netloc.lower().removeprefix("www.")
@@ -79,6 +79,48 @@ def _youtube_video_id(url: str) -> str:
     if host.endswith("youtube.com") and parsed.path == "/watch":
         return parse_qs(parsed.query).get("v", [""])[0]
     return ""
+
+
+def _is_youtube_shorts_url(url: str) -> bool:
+    parsed = urlparse(url.strip())
+    host = parsed.netloc.lower().removeprefix("www.")
+    path_parts = [part for part in parsed.path.split("/") if part]
+    return (
+        (host == "youtube.com" or host.endswith(".youtube.com"))
+        and len(path_parts) >= 2
+        and path_parts[0].lower() == "shorts"
+    )
+
+
+def _transcribe_youtube_short(url: str) -> list[TranscriptSegment]:
+    from app.services.reels import transcribe_audio_url
+
+    return transcribe_audio_url(url)
+
+
+def _short_whisper_fallback(url: str) -> YouTubeTranscriptResponse | None:
+    if not _is_youtube_shorts_url(url):
+        return None
+
+    transcript = _transcribe_youtube_short(url)
+    transcript_text = _clean_text(" ".join(segment.text for segment in transcript))
+    if not transcript_text:
+        return None
+
+    title, title_metadata = _youtube_oembed_title(url)
+    metadata = {
+        "transcription_method": "faster-whisper",
+        "transcript_word_count": str(len(transcript_text.split())),
+    }
+    metadata.update(title_metadata)
+    return YouTubeTranscriptResponse(
+        success=True,
+        title=title,
+        transcript_text=transcript_text,
+        combined_text=transcript_text,
+        transcript=transcript,
+        metadata=metadata,
+    )
 
 
 def _youtube_transcript_api() -> Any:

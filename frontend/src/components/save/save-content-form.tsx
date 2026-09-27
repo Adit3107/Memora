@@ -10,6 +10,7 @@ import {
   Video,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import {
@@ -62,6 +63,7 @@ const processingStages = [
 
 export function SaveContentForm() {
   const { user } = useUser();
+  const router = useRouter();
   const [inputType, setInputType] = useState<InputType>("video");
   const [contentName, setContentName] = useState("");
   const [url, setUrl] = useState("");
@@ -76,6 +78,7 @@ export function SaveContentForm() {
   const [result, setResult] = useState<IngestResult | null>(null);
   const [stageIndex, setStageIndex] = useState(0);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadTimeEstimate, setUploadTimeEstimate] = useState<string | null>(null);
 
   const isProcessing = state === "processing";
   const selectedSpace = useMemo(
@@ -181,6 +184,29 @@ export function SaveContentForm() {
       return;
     }
 
+    // Client-side file size guard (50 MB)
+    if (inputType === "document" && selectedFile && selectedFile.size > 50 * 1024 * 1024) {
+      setError("File is too large. Maximum upload size is 50 MB.");
+      setState("error");
+      return;
+    }
+
+    // Estimate upload time based on a conservative 1 Mbps uplink
+    if (inputType === "document" && selectedFile) {
+      const estimatedSeconds = Math.ceil(selectedFile.size / (1024 * 1024)); // ~1 MB/s estimate
+      if (estimatedSeconds > 3) {
+        setUploadTimeEstimate(
+          estimatedSeconds < 60
+            ? `~${estimatedSeconds} seconds`
+            : `~${Math.ceil(estimatedSeconds / 60)} minutes`
+        );
+      } else {
+        setUploadTimeEstimate(null);
+      }
+    } else {
+      setUploadTimeEstimate(null);
+    }
+
     setStageIndex(0);
     setState("processing");
     try {
@@ -218,6 +244,12 @@ export function SaveContentForm() {
       setResult(finalResult);
       setStageIndex(processingStages.length - 1);
       setState("success");
+      setUploadTimeEstimate(null);
+      // Automatically navigate to the saved content after a short delay
+      // so the user can see the success message before being redirected.
+      window.setTimeout(() => {
+        router.push(`/app/library/${finalResult.content_id}`);
+      }, 1800);
     } catch (caught) {
       console.error(caught);
       const message =
@@ -302,7 +334,7 @@ export function SaveContentForm() {
         })}
       </section>
 
-      <section className="rounded-md border bg-card p-5 shadow-sm">
+      <section className="rounded-md border bg-card p-4 shadow-sm sm:p-5">
         <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="space-y-5">
             <label className="space-y-2 text-sm font-medium" htmlFor="content-name">
@@ -353,9 +385,14 @@ export function SaveContentForm() {
                       <span>YouTube Video detected</span>
                     </span>
                   ) : (
-                    <span className="text-muted-foreground">
-                      Supported: YouTube, Instagram Reels, Facebook Reels
-                    </span>
+                    <>
+                      <span className="text-muted-foreground">
+                        Supported: YouTube, Instagram Reels, Facebook Reels
+                      </span>
+                      <span className="text-xs text-amber-500/80">
+                        Max 20 minutes per video
+                      </span>
+                    </>
                   )}
                 </div>
               </div>
@@ -499,8 +536,10 @@ export function SaveContentForm() {
                       />
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Upload progress is reported by the browser before Go begins
-                      extraction and embedding work.
+                      {uploadTimeEstimate
+                        ? <>Estimated upload time: <span className="font-medium text-foreground">{uploadTimeEstimate}</span> — hang tight while we process your file.</>
+                        : <>Upload progress is reported by the browser before Go begins extraction and embedding work.</>
+                      }
                     </p>
                   </div>
                 ) : null}

@@ -7,7 +7,7 @@ router = APIRouter(prefix="/embeddings")
 
 @router.post("", response_model=EmbeddingResponse)
 def embeddings(request: EmbeddingRequest) -> EmbeddingResponse:
-    return generate_embeddings(request.texts)
+    return generate_embeddings(request.texts, request.input_type)
 
 
 # Why this file exists:

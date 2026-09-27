@@ -302,6 +302,14 @@ def _transcribe_file_with_whisper(file_path: str) -> list[TranscriptSegment]:
         return []
 
 
+def transcribe_audio_url(url: str) -> list[TranscriptSegment]:
+    """Transcribe a media URL with Whisper without running video OCR."""
+    ydl_cls = _get_yt_dlp()
+    if ydl_cls is None:
+        return []
+    return _transcribe_audio_with_whisper(url, ydl_cls)
+
+
 def _extract_ocr_from_media(media_file_path: str) -> list[TranscriptSegment]:
     """Extract on-screen text from video frames using RapidOCR."""
     if not media_file_path:

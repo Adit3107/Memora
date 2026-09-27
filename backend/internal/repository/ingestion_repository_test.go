@@ -27,7 +27,7 @@ func TestValidateEmbeddedChunksAcceptsFullyEmbeddedChunks(t *testing.T) {
 			Text:           "embedded chunk",
 			SourceType:     ingestion.SourceTypeText,
 			Embedding:      make([]float64, ingestion.DefaultEmbeddingDimension),
-			EmbeddingModel: "sentence-transformers/all-MiniLM-L6-v2",
+			EmbeddingModel: "jinaai/jina-embeddings-v5-text-nano",
 		},
 	}, ingestion.DefaultEmbeddingDimension)
 	if err != nil {

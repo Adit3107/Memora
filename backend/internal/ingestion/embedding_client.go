@@ -14,8 +14,10 @@ import (
 )
 
 const (
-	DefaultEmbeddingDimension = 384
+	DefaultEmbeddingDimension = 256
 	MaxEmbeddingBatchSize     = 128
+	EmbeddingInputDocument    = "document"
+	EmbeddingInputQuery       = "query"
 )
 
 type EmbeddingBatch struct {
@@ -46,6 +48,18 @@ func NewPythonEmbeddingClient(baseURL string, client HTTPClient, expectedDimensi
 }
 
 func (c *PythonEmbeddingClient) Generate(ctx context.Context, texts []string) (EmbeddingBatch, error) {
+	return c.GenerateDocuments(ctx, texts)
+}
+
+func (c *PythonEmbeddingClient) GenerateDocuments(ctx context.Context, texts []string) (EmbeddingBatch, error) {
+	return c.generate(ctx, texts, EmbeddingInputDocument)
+}
+
+func (c *PythonEmbeddingClient) GenerateQuery(ctx context.Context, texts []string) (EmbeddingBatch, error) {
+	return c.generate(ctx, texts, EmbeddingInputQuery)
+}
+
+func (c *PythonEmbeddingClient) generate(ctx context.Context, texts []string, inputType string) (EmbeddingBatch, error) {
 	if c.baseURL == "" {
 		return EmbeddingBatch{}, ErrInaccessibleSource
 	}
@@ -66,7 +80,7 @@ func (c *PythonEmbeddingClient) Generate(ctx context.Context, texts []string) (E
 		return EmbeddingBatch{}, err
 	}
 
-	requestBody, err := json.Marshal(pythonEmbeddingRequest{Texts: texts})
+	requestBody, err := json.Marshal(pythonEmbeddingRequest{Texts: texts, InputType: inputType})
 	if err != nil {
 		return EmbeddingBatch{}, err
 	}
@@ -147,7 +161,8 @@ func (c *PythonEmbeddingClient) endpoint(endpointPath string) (string, error) {
 }
 
 type pythonEmbeddingRequest struct {
-	Texts []string `json:"texts"`
+	Texts     []string `json:"texts"`
+	InputType string   `json:"input_type"`
 }
 
 type pythonEmbeddingResponse struct {

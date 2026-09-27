@@ -22,7 +22,7 @@ func TestEmbedChunksPreservesChunkMetadataAndAddsVectors(t *testing.T) {
 		}
 		return pythonEmbeddingTestResponse{
 			Success:    true,
-			Model:      "sentence-transformers/all-MiniLM-L6-v2",
+			Model:      "jinaai/jina-embeddings-v5-text-nano",
 			Dimension:  ingestion.DefaultEmbeddingDimension,
 			Embeddings: embeddings,
 		}
@@ -93,7 +93,7 @@ func TestEmbedChunksUsesBoundedConcurrentBatches(t *testing.T) {
 		}
 		return pythonEmbeddingTestResponse{
 			Success:    true,
-			Model:      "sentence-transformers/all-MiniLM-L6-v2",
+			Model:      "jinaai/jina-embeddings-v5-text-nano",
 			Dimension:  ingestion.DefaultEmbeddingDimension,
 			Embeddings: embeddings,
 		}

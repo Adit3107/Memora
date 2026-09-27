@@ -162,9 +162,9 @@ func (r *IngestionRepository) SaveCompleted(ctx context.Context, ingestionID str
 			INSERT INTO content_chunks (
 				content_id, chunk_index, text, source_type, page_index,
 				start_seconds, end_seconds, metadata, embedding,
-				embedding_model, embedded_at, created_at
+				embedding_model, embedded_at, jina_embedding, created_at
 			)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::vector, $10, $11, $12)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::vector, $10, $11, $12::vector, $13)
 		`,
 			contentID,
 			chunk.Index,
@@ -174,9 +174,10 @@ func (r *IngestionRepository) SaveCompleted(ctx context.Context, ingestionID str
 			chunk.StartSeconds,
 			chunk.EndSeconds,
 			chunkMetadataJSON,
-			vectorLiteral(chunk.Embedding),
+			nil,
 			chunk.EmbeddingModel,
 			embeddedAt(chunk.Embedding),
+			vectorLiteral(chunk.Embedding),
 			now,
 		); err != nil {
 			return err

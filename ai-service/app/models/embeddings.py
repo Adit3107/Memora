@@ -1,8 +1,11 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
 class EmbeddingRequest(BaseModel):
     texts: list[str] = Field(min_length=1, max_length=128)
+    input_type: Literal["document", "query"] = "document"
 
 
 class EmbeddingResponse(BaseModel):

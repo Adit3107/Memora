@@ -131,8 +131,8 @@ Response:
 ```json
 {
   "success": true,
-  "model": "sentence-transformers/all-MiniLM-L6-v2",
-  "dimension": 384,
+  "model": "jinaai/jina-embeddings-v5-text-nano",
+  "dimension": 256,
   "embeddings": [[0.12, -0.03]],
   "error": ""
 }
@@ -145,13 +145,13 @@ The full embedding contract lives in `ai-service/EMBEDDING_CONTRACT.md`.
 Default model:
 
 ```text
-sentence-transformers/all-MiniLM-L6-v2
+jinaai/jina-embeddings-v5-text-nano
 ```
 
 Dimension:
 
 ```text
-384
+256
 ```
 
 This model is local and free to run, which fits the project goal of being
@@ -182,7 +182,7 @@ content
           +-- start_seconds
           +-- end_seconds
           +-- metadata
-          +-- embedding vector(384)
+          +-- jina_embedding vector(256)
           +-- embedding_model
           +-- embedded_at
 ```

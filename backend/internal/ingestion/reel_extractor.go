@@ -48,6 +48,11 @@ func (e *ReelExtractor) Extract(ctx context.Context, input ExtractInput) (Ingest
 		return IngestionResult{}, ErrTranscriptUnavailable
 	}
 
+	// Reject reels that are too long to keep AWS processing costs manageable.
+	if payload.DurationSeconds > MaxVideoDurationSeconds {
+		return IngestionResult{}, ErrVideoTooLong
+	}
+
 	var textParts []string
 	for _, seg := range payload.Transcript {
 		clean := cleanInlineText(seg.Text)

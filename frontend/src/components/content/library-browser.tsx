@@ -163,8 +163,8 @@ export function LibraryBrowser() {
             })}
           </div>
 
-          <div className="grid w-full gap-3 sm:w-auto sm:grid-cols-2">
-            <label className="flex min-w-40 flex-col gap-2 text-sm font-medium">
+          <div className="grid w-full grid-cols-2 gap-3 sm:w-auto sm:flex sm:items-end sm:gap-3">
+            <label className="flex flex-col gap-2 text-sm font-medium">
               Source
               <select
                 className="h-9 rounded-md border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
@@ -178,7 +178,7 @@ export function LibraryBrowser() {
                 ))}
               </select>
             </label>
-            <label className="flex min-w-40 flex-col gap-2 text-sm font-medium">
+            <label className="flex flex-col gap-2 text-sm font-medium">
               Sort
               <select
                 className="h-9 rounded-md border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50"

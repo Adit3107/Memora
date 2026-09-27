@@ -206,6 +206,8 @@ func IsIngestionClientError(err error) bool {
 		errors.Is(err, ingestion.ErrInaccessibleSource) ||
 		errors.Is(err, ingestion.ErrExtractionFailed) ||
 		errors.Is(err, ingestion.ErrTranscriptUnavailable) ||
+		errors.Is(err, ingestion.ErrYouTubeCaptionsRequired) ||
+		errors.Is(err, ingestion.ErrVideoTooLong) ||
 		errors.Is(err, ingestion.ErrEmbeddingFailed)
 }
 
@@ -443,7 +445,7 @@ func (s *IngestionService) embedChunkBatch(ctx context.Context, chunks []ingesti
 		texts = append(texts, chunks[index].Text)
 	}
 
-	batch, err := s.embeddingClient.Generate(ctx, texts)
+	batch, err := s.embeddingClient.GenerateDocuments(ctx, texts)
 	if err != nil {
 		return err
 	}

@@ -8,15 +8,29 @@ from app.config.settings import settings
 from app.models.embeddings import EmbeddingResponse
 
 
-def generate_embeddings(texts: list[str]) -> EmbeddingResponse:
+def generate_embeddings(texts: list[str], input_type: str = "document") -> EmbeddingResponse:
     cleaned = [_clean_text(text) for text in texts]
     if any(not text for text in cleaned):
         return _failure("embedding text cannot be empty")
+    if input_type not in {"document", "query"}:
+        return _failure("embedding input_type must be document or query")
 
     try:
-        model = _sentence_transformer()
-        vectors = model.encode(cleaned, normalize_embeddings=True).tolist()
+        model = _embedding_model()
+        vectors = model.encode(
+            texts=cleaned,
+            task="retrieval",
+            prompt_name=input_type,
+            truncate_dim=settings.embedding_dimension,
+        )
+        if hasattr(vectors, "tolist"):
+            vectors = vectors.tolist()
+        vectors = [_normalize(vector) for vector in vectors]
         dimension = len(vectors[0]) if vectors else 0
+        if dimension != settings.embedding_dimension:
+            return _failure(
+                f"embedding dimension mismatch: expected {settings.embedding_dimension}, got {dimension}"
+            )
         return EmbeddingResponse(
             success=True,
             model=settings.embedding_model_name,
@@ -37,10 +51,18 @@ def generate_embeddings(texts: list[str]) -> EmbeddingResponse:
 
 
 @lru_cache(maxsize=1)
-def _sentence_transformer():
-    from sentence_transformers import SentenceTransformer
+def _embedding_model():
+    from transformers import AutoModel
 
-    return SentenceTransformer(settings.embedding_model_name)
+    return AutoModel.from_pretrained(settings.embedding_model_name, trust_remote_code=True)
+
+
+def _normalize(vector: list[float]) -> list[float]:
+    values = [float(value) for value in vector]
+    norm = math.sqrt(sum(value * value for value in values))
+    if norm == 0:
+        return values
+    return [value / norm for value in values]
 
 
 def _hash_embedding(text: str, dimension: int) -> list[float]:

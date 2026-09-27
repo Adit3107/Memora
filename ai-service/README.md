@@ -18,8 +18,8 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8001
 ```
 
-The first real embedding request may download the local SentenceTransformer
-model. After that, the model is cached by the normal Hugging Face tooling.
+The first real embedding request downloads the Jina model weights. After that,
+the model is cached by the normal Hugging Face tooling.
 
 ## Environment
 
@@ -27,8 +27,8 @@ model. After that, the model is cached by the normal Hugging Face tooling.
 HOST=127.0.0.1
 PORT=8001
 TESSERACT_CMD=tesseract
-EMBEDDING_MODEL_NAME=sentence-transformers/all-MiniLM-L6-v2
-EMBEDDING_DIMENSION=384
+EMBEDDING_MODEL_NAME=jinaai/jina-embeddings-v5-text-nano
+EMBEDDING_DIMENSION=256
 ALLOW_HASH_EMBEDDINGS=true
 ```
 
@@ -51,21 +51,23 @@ POST /embeddings
 Default model:
 
 ```text
-sentence-transformers/all-MiniLM-L6-v2
+jinaai/jina-embeddings-v5-text-nano
 ```
 
 Dimension:
 
 ```text
-384
+256
 ```
 
 Why this model:
 
-- Free and local, so no paid API is required.
-- Small enough for a student/dev machine.
-- Good enough for V1 semantic retrieval over documents and transcripts.
-- Produces 384-dimensional vectors, which keeps pgvector storage modest.
+- Local inference supports multilingual retrieval, including Hindi.
+- Produces 256-dimensional vectors using Jina's supported Matryoshka size.
+- Query and document inputs use distinct retrieval prompts.
+
+The model weights are licensed CC BY-NC 4.0. Check the license and obtain
+permission before using the weights commercially.
 
 Python returns vectors to Go. It does not connect to PostgreSQL and does not own
 chunk persistence.
@@ -78,7 +80,8 @@ Request:
 
 ```json
 {
-  "texts": ["first chunk", "second chunk"]
+  "texts": ["first chunk", "second chunk"],
+  "input_type": "document"
 }
 ```
 
@@ -87,8 +90,8 @@ Response:
 ```json
 {
   "success": true,
-  "model": "sentence-transformers/all-MiniLM-L6-v2",
-  "dimension": 384,
+  "model": "jinaai/jina-embeddings-v5-text-nano",
+  "dimension": 256,
   "embeddings": [[0.12, -0.03]],
   "error": ""
 }
@@ -99,6 +102,7 @@ Rules:
 - batch size is 1 through 128
 - empty text is rejected
 - one vector is returned for each input text
+- `input_type` is `document` or `query` (defaults to `document`)
 - vectors must match the configured dimension
 
 ## Testing
@@ -123,7 +127,7 @@ Content-Type: application/json
 }
 ```
 
-Expected: `success: true`, `dimension: 384`, and two embedding arrays.
+Expected: `success: true`, `dimension: 256`, and two embedding arrays.
 
 ## Phase Boundary
 

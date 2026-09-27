@@ -17,7 +17,8 @@ Content-Type: application/json
   "texts": [
     "first chunk",
     "second chunk"
-  ]
+  ],
+  "input_type": "document"
 }
 ```
 
@@ -26,6 +27,7 @@ Rules:
 - `texts` is required.
 - Batch size must be 1 through 128.
 - Every text item must contain non-whitespace content.
+- `input_type` is `document` or `query`; it defaults to `document`.
 - Go sends already-created chunks; Python does not chunk content.
 - The frontend must never call this endpoint directly.
 
@@ -34,8 +36,8 @@ Rules:
 ```json
 {
   "success": true,
-  "model": "sentence-transformers/all-MiniLM-L6-v2",
-  "dimension": 384,
+  "model": "jinaai/jina-embeddings-v5-text-nano",
+  "dimension": 256,
   "embeddings": [
     [0.12, -0.03],
     [0.04, 0.19]
@@ -48,8 +50,9 @@ Rules:
 
 - `embeddings.length` must equal `texts.length`.
 - Every embedding must have exactly `dimension` values.
-- For V1, Go defaults to requiring `dimension` to equal `384`.
+- Go defaults to requiring `dimension` to equal `256`.
 - `model` identifies the embedding model used for stored chunks.
+- `document` and `query` select Jina's retrieval passage and query prompts.
 
 ## Failure Response
 
@@ -83,36 +86,23 @@ ingestion completed.
 
 ## Model Choice
 
-Default model:
-
-```text
-sentence-transformers/all-MiniLM-L6-v2
-```
-
-Why:
-
-- Free local model with no paid API requirement.
-- Small enough for student/dev machines compared with larger embedding models.
-- Produces 384-dimensional vectors, which keeps pgvector storage modest.
-- Good enough for V1 semantic search over notes, transcripts, and documents.
-
-Tradeoffs:
-
-- Local inference uses CPU/RAM and the first run downloads model files.
-- Quality is good for V1, but paid or larger models may improve retrieval later.
-- pgvector schema uses `vector(384)`, so changing to a different dimension later
-  requires a migration and re-embedding existing chunks.
-
-If the model changes later, update both services:
-
-- Python: `EMBEDDING_MODEL_NAME` and `EMBEDDING_DIMENSION`
-- Go: `EMBEDDING_DIMENSION`
-- PostgreSQL: a migration that matches the new vector dimension
+- Default model: `jinaai/jina-embeddings-v5-text-nano`.
+- Output dimension: `256`.
+- `document` and `query` select Jina's retrieval document and query prompts.
+- The model supports multilingual retrieval and Hindi. Romanized or mixed-script
+  Hinglish should be evaluated with representative queries before relying on it.
+- Local inference uses CPU/RAM and downloads model files on first use.
+- The weights are licensed CC BY-NC 4.0; obtain appropriate permission before
+  commercial use.
+- Active Jina vectors use `vector(256)`. Legacy 384-dimensional vectors remain
+  in `embedding` during migration and are excluded from Jina semantic search.
+- Run `go run ./cmd/reembed` from `backend/` to populate vectors for old chunks.
+  The command is safe to resume after interruption.
 
 Development fallback:
 
 ```text
-hash-dev-384
+hash-dev-256
 ```
 
 This exists only so local endpoint tests can run when the real model dependency
@@ -121,11 +111,14 @@ search quality.
 
 ## Persistence
 
-Go stores vectors in:
+Go stores active Jina vectors in:
 
 ```text
-content_chunks.embedding vector(384)
+content_chunks.jina_embedding vector(256)
 ```
+
+The previous `content_chunks.embedding vector(384)` column is retained as
+legacy data during the transition.
 
 alongside:
 
