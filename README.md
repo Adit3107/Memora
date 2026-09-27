@@ -1,6 +1,6 @@
-# Memora
+# Mindshelf
 
-Memora is an AI-powered multimodal personal knowledge platform.
+Mindshelf is an AI-powered multimodal personal knowledge platform.
 
 Tagline:
 
