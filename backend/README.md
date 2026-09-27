@@ -20,7 +20,7 @@ AWS_ACCESS_KEY_ID=YOUR_ACCESS_KEY
 AWS_SECRET_ACCESS_KEY=YOUR_SECRET_KEY
 
 AI_SERVICE_URL=http://localhost:8001
-EMBEDDING_DIMENSION=384
+EMBEDDING_DIMENSION=256
 EMBEDDING_MAX_CONCURRENCY=2
 ```
 
@@ -75,7 +75,7 @@ YouTube URL
   -> timestamped transcript
   -> Go chunks by transcript segments
   -> Python /embeddings
-  -> content_chunks.embedding vector(384)
+  -> content_chunks.jina_embedding vector(256)
 ```
 
 For documents:
@@ -86,22 +86,25 @@ PDF/DOCX/PPTX/TXT/CSV/XLSX/Image
   -> cleaned text
   -> page-aware chunks where page data exists
   -> Python /embeddings
-  -> content_chunks.embedding vector(384)
+  -> content_chunks.jina_embedding vector(256)
 ```
 
 ## pgvector Storage
 
-Migration `005_content_chunk_embeddings.sql` adds:
+Migration `005_content_chunk_embeddings.sql` adds the original 384-dimensional
+embedding column. Migration `009_jina_embeddings.sql` adds the active Jina column:
 
-- `content_chunks.embedding vector(384)`
+- `content_chunks.jina_embedding vector(256)`
 - `content_chunks.embedding_model`
 - `content_chunks.embedded_at`
 
-The dimension is `384` because the selected model is
-`sentence-transformers/all-MiniLM-L6-v2`.
+The active model is `jinaai/jina-embeddings-v5-text-nano`; query and document
+embeddings use its retrieval-specific prompts. The original `embedding` column
+is retained during migration so existing vectors are not discarded.
 
-If you change the embedding model later, also update `EMBEDDING_DIMENSION`,
-create a matching pgvector migration, and re-embed existing chunks.
+After deploying the new model and migration, run `go run ./cmd/reembed` from
+`backend/` with the database and Python AI service reachable. This fills missing
+Jina vectors from saved chunk text in batches. Re-run it safely if interrupted.
 
 Chunk metadata is preserved for future citations:
 
@@ -127,7 +130,7 @@ database persistence fails, Go marks the ingestion result as `failed`.
 Go does not mark ingestion `completed` unless every chunk has:
 
 - non-empty text
-- a `384`-dimension embedding
+- a `256`-dimension Jina embedding
 - an embedding model name
 
 Database writes for the final ingestion result and chunks happen in one

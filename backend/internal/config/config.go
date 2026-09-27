@@ -50,7 +50,7 @@ func Load() Config {
 		Port:                    port,
 		DatabaseURL:             os.Getenv("DATABASE_URL"),
 		AIServiceURL:            aiURL,
-		EmbeddingDimension:      getEnvInt("EMBEDDING_DIMENSION", 384),
+		EmbeddingDimension:      getEnvInt("EMBEDDING_DIMENSION", 256),
 		EmbeddingMaxConcurrency: getEnvInt("EMBEDDING_MAX_CONCURRENCY", 2),
 		GeminiAPIKey:            os.Getenv("GEMINI_API_KEY"),
 		GeminiModel:             getEnv("GEMINI_MODEL", "gemini-3.8-flash"),

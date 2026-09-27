@@ -203,7 +203,7 @@ export function ContentDetail({ item }: ContentDetailProps) {
                 value={contentName}
               />
             ) : (
-              <h1 className="text-3xl font-semibold tracking-normal text-foreground sm:text-4xl">
+              <h1 className="text-2xl font-semibold tracking-normal text-foreground sm:text-3xl md:text-4xl">
                 {contentName}
               </h1>
             )}
@@ -241,7 +241,7 @@ export function ContentDetail({ item }: ContentDetailProps) {
       </div>
 
       {/* 3 Information Cards */}
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {/* Card 1: Space */}
         <div className="rounded-xl border bg-card p-5 shadow-sm transition hover:border-border/80">
           <div className="flex items-center justify-between">
@@ -329,7 +329,7 @@ export function ContentDetail({ item }: ContentDetailProps) {
       </section>
 
       <section className="rounded-xl border bg-card p-5 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Tags</h2>
             <div className="mt-3 flex flex-wrap gap-2">

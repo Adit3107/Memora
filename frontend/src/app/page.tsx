@@ -151,14 +151,14 @@ export default function LandingPage() {
             Your second memory
           </motion.div>
           <motion.h1
-            className="mt-8 text-6xl font-bold leading-[0.95] tracking-normal sm:text-7xl lg:text-8xl"
+            className="mt-8 text-4xl font-bold leading-[0.95] tracking-normal sm:text-6xl lg:text-8xl"
             variants={itemVariants}
           >
             Save everything.
             <span className="sparkle-text block">Recall it instantly.</span>
           </motion.h1>
           <motion.p
-            className="mx-auto mt-7 max-w-3xl text-xl font-medium leading-8 sm:text-2xl"
+            className="mx-auto mt-7 max-w-3xl text-lg font-medium leading-8 sm:text-xl md:text-2xl"
             variants={itemVariants}
           >
             Mindshelf turns reels, videos, documents, and notes into an
@@ -444,7 +444,7 @@ function FeatureRows() {
             >
               <div className={cn("space-y-4", index % 2 === 1 && "lg:order-2")}>
                 <p className="text-sm font-semibold uppercase text-primary">Feature</p>
-                <h2 className="text-4xl font-semibold tracking-normal sm:text-5xl">
+                <h2 className="text-3xl font-semibold tracking-normal sm:text-4xl lg:text-5xl">
                   {feature.title}
                 </h2>
                 <p className="max-w-xl text-base leading-8 landing-muted">{feature.body}</p>
@@ -487,7 +487,7 @@ function AnimatedPipeline() {
     <section className="landing-shell mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8" id="docs">
       <div className="max-w-3xl">
         <p className="text-sm font-semibold uppercase text-primary">How it works</p>
-        <h2 className="mt-4 text-4xl font-semibold tracking-normal sm:text-6xl">
+        <h2 className="mt-4 text-3xl font-semibold tracking-normal sm:text-5xl lg:text-6xl">
           Add. Process. Search. Recall.
         </h2>
         <p className="mt-4 max-w-xl text-base leading-7 landing-muted">
@@ -528,7 +528,7 @@ function AnimatedPipeline() {
         </svg>
 
         <motion.div
-          className="grid gap-4 md:grid-cols-4"
+          className="grid gap-4 sm:grid-cols-2 md:grid-cols-4"
           initial="hidden"
           variants={containerVariants}
           viewport={{ once: true }}
@@ -587,7 +587,7 @@ function SpacesSection() {
       <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8">
         <div className="max-w-3xl">
           <p className="text-sm font-semibold uppercase text-primary">Spaces</p>
-          <h2 className="mt-4 text-4xl font-semibold tracking-normal sm:text-6xl">
+          <h2 className="mt-4 text-3xl font-semibold tracking-normal sm:text-5xl lg:text-6xl">
             Organize knowledge around what matters to you.
           </h2>
         </div>
@@ -615,7 +615,7 @@ function ClosingCTA() {
       <div className="mx-auto flex size-14 items-center justify-center rounded-2xl border bg-card">
         <BrainCircuit className="size-7 text-primary" />
       </div>
-      <h2 className="mt-8 text-5xl font-semibold tracking-normal sm:text-7xl">
+      <h2 className="mt-8 text-3xl font-semibold tracking-normal sm:text-5xl lg:text-7xl">
         Remember more. Search less.
       </h2>
       <p className="mx-auto mt-6 max-w-2xl text-base leading-8 landing-muted">
@@ -635,7 +635,7 @@ function ClosingCTA() {
 function LandingFooter() {
   return (
     <footer className="neon-section landing-shell" id="about">
-      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-[1fr_auto_auto_auto] lg:px-8">
+      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 sm:grid-cols-2 md:grid-cols-[1fr_auto_auto_auto] lg:px-8">
         <div>
           <div className="flex items-center gap-3 font-semibold">
             <span className="memora-wordmark text-lg">Mindshelf</span>

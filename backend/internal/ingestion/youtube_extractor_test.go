@@ -100,3 +100,20 @@ func TestYouTubeExtractorHandlesUnavailableTranscript(t *testing.T) {
 		t.Fatalf("Extract() error = %v, want %v", err, ErrTranscriptUnavailable)
 	}
 }
+
+func TestYouTubeExtractorExplainsCaptionsRequiredForRegularVideos(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":false,"error":"youtube transcript is unavailable"}`))
+	}))
+	defer server.Close()
+
+	extractor := NewYouTubeExtractor(NewPythonExtractionClient(server.URL, server.Client()))
+	_, err := extractor.Extract(context.Background(), ExtractInput{SourceURL: "https://youtube.com/watch?v=missing"})
+	if !errors.Is(err, ErrYouTubeCaptionsRequired) {
+		t.Fatalf("Extract() error = %v, want %v", err, ErrYouTubeCaptionsRequired)
+	}
+	if !strings.Contains(err.Error(), "Automatic transcription is only available for Shorts") {
+		t.Fatalf("error message is not actionable: %v", err)
+	}
+}

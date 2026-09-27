@@ -11,9 +11,9 @@ class Settings:
     def __init__(self) -> None:
         self.embedding_model_name = os.getenv(
             "EMBEDDING_MODEL_NAME",
-            "sentence-transformers/all-MiniLM-L6-v2",
+            "jinaai/jina-embeddings-v5-text-nano",
         )
-        self.embedding_dimension = int(os.getenv("EMBEDDING_DIMENSION", "384"))
+        self.embedding_dimension = int(os.getenv("EMBEDDING_DIMENSION", "256"))
         self.allow_hash_embeddings = os.getenv("ALLOW_HASH_EMBEDDINGS", "true").lower() == "true"
 
 

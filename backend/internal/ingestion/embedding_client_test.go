@@ -21,11 +21,14 @@ func TestPythonEmbeddingClientGenerate(t *testing.T) {
 		if len(request.Texts) != 2 {
 			t.Fatalf("expected 2 texts, got %d", len(request.Texts))
 		}
+		if request.InputType != EmbeddingInputDocument {
+			t.Fatalf("expected document input type, got %q", request.InputType)
+		}
 
 		embedding := make([]float64, DefaultEmbeddingDimension)
 		response := pythonEmbeddingResponse{
 			Success:    true,
-			Model:      "sentence-transformers/all-MiniLM-L6-v2",
+			Model:      "jinaai/jina-embeddings-v5-text-nano",
 			Dimension:  DefaultEmbeddingDimension,
 			Embeddings: [][]float64{embedding, embedding},
 		}
@@ -46,6 +49,29 @@ func TestPythonEmbeddingClientGenerate(t *testing.T) {
 	}
 	if len(got.Embeddings) != 2 {
 		t.Fatalf("expected 2 embeddings, got %d", len(got.Embeddings))
+	}
+}
+
+func TestPythonEmbeddingClientUsesQueryInputType(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request pythonEmbeddingRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		if request.InputType != EmbeddingInputQuery {
+			t.Fatalf("expected query input type, got %q", request.InputType)
+		}
+		embedding := make([]float64, DefaultEmbeddingDimension)
+		_ = json.NewEncoder(w).Encode(pythonEmbeddingResponse{
+			Success: true, Model: "jinaai/jina-embeddings-v5-text-nano",
+			Dimension: DefaultEmbeddingDimension, Embeddings: [][]float64{embedding},
+		})
+	}))
+	defer server.Close()
+
+	client := NewPythonEmbeddingClient(server.URL, server.Client(), DefaultEmbeddingDimension)
+	if _, err := client.GenerateQuery(context.Background(), []string{"search query"}); err != nil {
+		t.Fatalf("GenerateQuery returned error: %v", err)
 	}
 }
 

@@ -2,6 +2,7 @@ package ingestion
 
 import (
 	"context"
+	"errors"
 	"net/url"
 	"strings"
 )
@@ -29,10 +30,21 @@ func (e *YouTubeExtractor) Extract(ctx context.Context, input ExtractInput) (Ing
 
 	payload, err := e.client.ExtractYouTubeTranscript(ctx, sourceURL)
 	if err != nil {
+		if errors.Is(err, ErrTranscriptUnavailable) && !isYouTubeShortsURL(sourceURL) {
+			return IngestionResult{}, ErrYouTubeCaptionsRequired
+		}
 		return IngestionResult{}, err
 	}
 	if len(payload.Transcript) == 0 || strings.TrimSpace(payload.TranscriptText) == "" {
+		if !isYouTubeShortsURL(sourceURL) {
+			return IngestionResult{}, ErrYouTubeCaptionsRequired
+		}
 		return IngestionResult{}, ErrTranscriptUnavailable
+	}
+
+	// Reject videos that are too long to keep AWS processing costs manageable.
+	if duration := transcriptDuration(payload.Transcript); duration > MaxVideoDurationSeconds {
+		return IngestionResult{}, ErrVideoTooLong
 	}
 
 	cleanText := cleanStructuredText(payload.CombinedText)
@@ -96,6 +108,11 @@ func YouTubeVideoID(rawURL string) (string, error) {
 	}
 }
 
+func isYouTubeShortsURL(rawURL string) bool {
+	parsedURL, err := url.Parse(strings.TrimSpace(rawURL))
+	return err == nil && strings.HasPrefix(strings.ToLower(parsedURL.Path), "/shorts/")
+}
+
 func cleanYouTubeID(value string) (string, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -126,6 +143,18 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return "Untitled YouTube video"
+}
+
+// transcriptDuration returns the end time of the final transcript segment,
+// which approximates the total video duration in seconds.
+func transcriptDuration(segments []TranscriptSegment) float64 {
+	var max float64
+	for _, seg := range segments {
+		if seg.EndSeconds > max {
+			max = seg.EndSeconds
+		}
+	}
+	return max
 }
 
 var _ Extractor = (*YouTubeExtractor)(nil)

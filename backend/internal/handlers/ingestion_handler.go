@@ -56,6 +56,13 @@ func (h *IngestionHandler) IngestURL(c *gin.Context) {
 }
 
 func (h *IngestionHandler) IngestFile(c *gin.Context) {
+	// Enforce a 50 MB hard limit on uploads at the HTTP boundary.
+	const maxUploadBytes = 50 << 20 // 50 MB
+	if err := c.Request.ParseMultipartForm(maxUploadBytes); err != nil {
+		response.Error(c, http.StatusRequestEntityTooLarge, "File too large", "Maximum upload size is 50 MB")
+		return
+	}
+
 	userID := c.PostForm("user_id")
 	spaceID := c.PostForm("space_id")
 

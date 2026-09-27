@@ -155,7 +155,7 @@ func (s *SearchService) ContentMetadata(ctx context.Context, userID string, cont
 }
 
 func (s *SearchService) semanticSearch(ctx context.Context, input SearchInput) ([]repository.ChunkSearchResult, error) {
-	batch, err := s.embeddingClient.Generate(ctx, []string{input.Query})
+	batch, err := s.embeddingClient.GenerateQuery(ctx, []string{input.Query})
 	if err != nil {
 		return nil, err
 	}
