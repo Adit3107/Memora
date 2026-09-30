@@ -14,6 +14,7 @@ import {
   type BackendTag,
 } from "@/lib/api";
 import { savedContent } from "@/data/content";
+import { syncBackendUser } from "@/lib/auth-sync";
 import type { SavedContentItem } from "@/types/content";
 
 import { ContentCard } from "./content-card";
@@ -58,7 +59,9 @@ export function LibraryBrowser() {
     setIsLoading(true);
     setError("");
     try {
-      const userId = user?.id;
+      if (!user) return;
+      await syncBackendUser(user);
+      const userId = user.id;
       const [content, spaces] = await Promise.all([
         listContent(userId),
         listSpaces(userId),

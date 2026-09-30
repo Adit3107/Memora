@@ -67,6 +67,11 @@ func (s *ContentService) Update(id string, input UpdateContentInput) (models.Con
 	}
 
 	content.CreatedAt = existing.CreatedAt
+	content.StorageBucket = existing.StorageBucket
+	content.StorageKey = existing.StorageKey
+	content.OriginalFilename = existing.OriginalFilename
+	content.FileContentType = existing.FileContentType
+	content.FileSize = existing.FileSize
 	content.UpdatedAt = time.Now().UTC()
 
 	return s.repo.Update(id, content)

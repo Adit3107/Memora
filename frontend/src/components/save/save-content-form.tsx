@@ -26,6 +26,7 @@ import {
   type IngestResult,
 } from "@/lib/api";
 import { useUser } from "@clerk/nextjs";
+import { syncBackendUser } from "@/lib/auth-sync";
 import { cn } from "@/lib/utils";
 
 import { Button } from "../ui/button";
@@ -105,7 +106,9 @@ export function SaveContentForm() {
 
   async function loadFormData() {
     try {
-      const userId = user?.id;
+      if (!user) return;
+      await syncBackendUser(user);
+      const userId = user.id;
       const [spaceRows, tagRows] = await Promise.all([
         listSpaces(userId),
         listTags(userId),

@@ -2,7 +2,8 @@
 
 import { useUser } from "@clerk/nextjs";
 import { useEffect, useRef } from "react";
-import { syncUser } from "@/lib/api";
+
+import { syncBackendUser } from "@/lib/auth-sync";
 
 /**
  * Invisible component mounted inside the /app layout.
@@ -19,16 +20,7 @@ export function UserSync() {
     if (lastSyncedId.current === user.id) return;
     lastSyncedId.current = user.id;
 
-    const name =
-      user.fullName ??
-      (`${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || user.username) ??
-      "Unknown";
-    const email =
-      user.primaryEmailAddress?.emailAddress ??
-      user.emailAddresses[0]?.emailAddress ??
-      "";
-
-    void syncUser({ id: user.id, name, email })
+    void syncBackendUser(user)
       .then(() => window.dispatchEvent(new Event("mindshelf:spaces-changed")))
       .catch(() => {
         // Non-fatal: if sync fails the user can still browse; will retry on next load

@@ -12,6 +12,7 @@ import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { buttonVariants } from "@/components/ui/button";
 import { savedContent } from "@/data/content";
+import { syncBackendUser } from "@/lib/auth-sync";
 import {
   displayContentName,
   listContent,
@@ -62,7 +63,9 @@ export function LiveDashboard() {
     setIsLoading(true);
     setError("");
     try {
-      const userId = user?.id;
+      if (!user) return;
+      await syncBackendUser(user);
+      const userId = user.id;
       const [contentRows, spaceRows] = await Promise.all([
         listContent(userId),
         listSpaces(userId),

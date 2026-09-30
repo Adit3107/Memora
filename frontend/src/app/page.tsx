@@ -7,11 +7,13 @@ import {
   Image,
   LayoutDashboard,
   Layers3,
+  Menu,
   Play,
   Search,
   Sparkles,
   UploadCloud,
   Video,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -24,7 +26,7 @@ import {
 } from "framer-motion";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { buttonVariants } from "@/components/ui/button";
@@ -135,10 +137,10 @@ export default function LandingPage() {
   return (
     <main className="memora-landing">
       <FloatingNavbar isSignedIn={isSignedIn ?? false} />
-      <section className="landing-shell relative mx-auto flex min-h-[calc(100vh-80px)] max-w-7xl flex-col justify-center px-4 py-16 sm:px-6 lg:px-8">
+      <section className="landing-shell relative mx-auto flex min-h-[calc(100vh-64px)] max-w-7xl flex-col justify-center px-4 py-12 sm:min-h-[calc(100vh-80px)] sm:px-6 sm:py-16 lg:px-8">
         <AppAlignedAccent />
         <motion.div
-          className="mx-auto max-w-5xl text-center"
+          className="mx-auto w-full max-w-5xl overflow-hidden text-center"
           initial="hidden"
           animate="show"
           variants={containerVariants}
@@ -151,14 +153,14 @@ export default function LandingPage() {
             Your second memory
           </motion.div>
           <motion.h1
-            className="mt-8 text-4xl font-bold leading-[0.95] tracking-normal sm:text-6xl lg:text-8xl"
+            className="mt-6 text-3xl font-bold leading-[0.95] tracking-normal sm:mt-8 sm:text-5xl md:text-6xl lg:text-8xl"
             variants={itemVariants}
           >
             Save everything.
             <span className="sparkle-text block">Recall it instantly.</span>
           </motion.h1>
           <motion.p
-            className="mx-auto mt-7 max-w-3xl text-lg font-medium leading-8 sm:text-xl md:text-2xl"
+            className="mx-auto mt-5 max-w-3xl text-base font-medium leading-7 sm:mt-7 sm:text-lg sm:leading-8 md:text-xl lg:text-2xl"
             variants={itemVariants}
           >
             Mindshelf turns reels, videos, documents, and notes into an
@@ -241,58 +243,150 @@ export default function LandingPage() {
 function FloatingNavbar({ isSignedIn }: { isSignedIn: boolean }) {
   const { scrollY } = useScroll();
   const [scrolled, setScrolled] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useMotionValueEvent(scrollY, "change", (latest) => {
     setScrolled(latest > 90);
   });
 
+  // Close mobile menu on resize to desktop
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    const handler = () => { if (mq.matches) setMobileOpen(false); };
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    document.body.style.overflow = mobileOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [mobileOpen]);
+
+  const closeMobile = useCallback(() => setMobileOpen(false), []);
+
+  const navLinks = (
+    <>
+      <a className="transition-colors hover:text-foreground" href="#product" onClick={closeMobile}>
+        Product
+      </a>
+      <a className="transition-colors hover:text-foreground" href="#how-it-works" onClick={closeMobile}>
+        How it works
+      </a>
+      <a className="transition-colors hover:text-foreground" href="#docs" onClick={closeMobile}>
+        Docs
+      </a>
+    </>
+  );
+
   return (
     <motion.header
       className={cn(
         "sticky top-0 z-30 border-b transition-all duration-200",
-        scrolled ? "landing-nav" : "floating-nav-transparent"
+        scrolled || mobileOpen ? "landing-nav" : "floating-nav-transparent"
       )}
     >
-      <nav className="landing-shell mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+      <nav className="landing-shell mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:h-20 sm:px-6 lg:px-8">
         <Link className="flex items-center gap-3 font-semibold tracking-normal" href="/">
           <span className="memora-wordmark text-xl sm:text-2xl">Mindshelf</span>
         </Link>
+
+        {/* Desktop nav links */}
         <div className="hidden items-center gap-8 text-sm font-medium landing-muted md:flex">
-          <a className="transition-colors hover:text-foreground" href="#product">
-            Product
-          </a>
-          <a className="transition-colors hover:text-foreground" href="#how-it-works">
-            How it works
-          </a>
-          <a className="transition-colors hover:text-foreground" href="#docs">
-            Docs
-          </a>
+          {navLinks}
         </div>
+
         <div className="flex items-center gap-2">
           <ThemeToggle />
+
+          {/* Desktop auth buttons */}
+          <div className="hidden md:flex md:items-center md:gap-2">
+            {isSignedIn ? (
+              <Link
+                className={cn(buttonVariants({ variant: "default" }), "rounded-full gap-2")}
+                href="/app"
+              >
+                <LayoutDashboard className="size-4" />
+                Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link
+                  className="rounded-full px-4 py-2 text-sm font-medium transition-colors hover:bg-accent"
+                  href="/login"
+                >
+                  Sign in
+                </Link>
+                <Link className={cn(buttonVariants({ variant: "default" }), "rounded-full")} href="/signup">
+                  Get Started
+                </Link>
+              </>
+            )}
+          </div>
+
+          {/* Hamburger toggle — mobile only */}
+          <button
+            aria-label={mobileOpen ? "Close menu" : "Open menu"}
+            className="relative z-50 flex size-10 items-center justify-center rounded-xl transition-colors hover:bg-accent md:hidden"
+            onClick={() => setMobileOpen((prev) => !prev)}
+          >
+            <motion.span
+              animate={{ rotate: mobileOpen ? 90 : 0, scale: mobileOpen ? 0.9 : 1 }}
+              transition={{ duration: 0.2 }}
+            >
+              {mobileOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+            </motion.span>
+          </button>
+        </div>
+      </nav>
+
+      {/* ── Mobile drawer ── */}
+      <motion.div
+        className="mobile-nav-drawer md:hidden"
+        initial={false}
+        animate={mobileOpen ? "open" : "closed"}
+        variants={{
+          open: { height: "auto", opacity: 1 },
+          closed: { height: 0, opacity: 0 },
+        }}
+        transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
+      >
+        <div className="flex flex-col gap-2 px-4 pb-6 pt-2">
+          <div className="flex flex-col gap-4 text-base font-medium landing-muted">
+            {navLinks}
+          </div>
+
+          <div className="my-3 h-px w-full bg-border/60" />
+
           {isSignedIn ? (
             <Link
-              className={cn(buttonVariants({ variant: "default" }), "rounded-full gap-2")}
+              className={cn(buttonVariants({ variant: "default", size: "lg" }), "w-full rounded-full gap-2")}
               href="/app"
+              onClick={closeMobile}
             >
               <LayoutDashboard className="size-4" />
               Dashboard
             </Link>
           ) : (
-            <>
+            <div className="flex flex-col gap-2">
               <Link
-                className="hidden rounded-full px-4 py-2 text-sm font-medium transition-colors hover:bg-accent sm:inline-flex"
+                className={cn(buttonVariants({ variant: "default", size: "lg" }), "w-full rounded-full")}
+                href="/signup"
+                onClick={closeMobile}
+              >
+                Get Started
+              </Link>
+              <Link
+                className="landing-ghost-button flex h-11 items-center justify-center rounded-full text-sm font-medium transition-colors hover:bg-accent"
                 href="/login"
+                onClick={closeMobile}
               >
                 Sign in
               </Link>
-              <Link className={cn(buttonVariants({ variant: "default" }), "rounded-full")} href="/signup">
-                Get Started
-              </Link>
-            </>
+            </div>
           )}
         </div>
-      </nav>
+      </motion.div>
     </motion.header>
   );
 }
@@ -320,7 +414,7 @@ function AppAlignedAccent() {
 function ProductPreview() {
   return (
     <div className="relative mx-auto max-w-6xl animate-[memora-float_8s_ease-in-out_infinite]">
-      <div className="landing-panel overflow-hidden rounded-[2rem]">
+      <div className="landing-panel overflow-hidden rounded-2xl sm:rounded-[2rem]">
         <div className="flex items-center justify-between border-b px-5 py-4">
           <div className="flex items-center gap-3">
             <span className="memora-wordmark text-lg">Mindshelf</span>
@@ -334,7 +428,7 @@ function ProductPreview() {
           </div>
         </div>
 
-        <div className="grid min-h-[540px] lg:grid-cols-[220px_1fr]">
+        <div className="grid min-h-[320px] sm:min-h-[540px] lg:grid-cols-[220px_1fr]">
           <aside className="hidden border-r bg-background/40 p-5 lg:block">
             {["Home", "Search", "Library"].map((item, index) => (
               <div
@@ -357,17 +451,17 @@ function ProductPreview() {
             ))}
           </aside>
 
-          <section className="p-5 sm:p-7">
+          <section className="p-4 sm:p-5 md:p-7">
             <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
               <div>
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                   <div>
                     <p className="text-sm font-medium text-primary">Home</p>
-                    <h2 className="mt-2 text-3xl font-semibold tracking-normal">
+                    <h2 className="mt-2 text-xl font-semibold tracking-normal sm:text-2xl md:text-3xl">
                       Your memory, organized.
                     </h2>
                   </div>
-                  <button className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
+                  <button className="w-fit rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
                     Add Content
                   </button>
                 </div>
@@ -379,7 +473,7 @@ function ProductPreview() {
                 </div>
               </div>
 
-              <aside className="rounded-2xl border bg-background/60 p-4">
+              <aside className="hidden rounded-2xl border bg-background/60 p-4 xl:block">
                 <div className="rounded-xl border bg-card p-4">
                   <p className="text-xs font-semibold uppercase landing-faint">Search</p>
                   <p className="mt-3 text-sm">kafka consumer failures</p>
@@ -430,7 +524,7 @@ function MemoryPreviewCard({ card }: { card: (typeof previewCards)[number] }) {
 function FeatureRows() {
   return (
     <section className="neon-section landing-shell" id="product">
-      <div className="mx-auto max-w-7xl space-y-20 px-4 py-24 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl space-y-14 px-4 py-14 sm:space-y-20 sm:px-6 sm:py-24 lg:px-8">
         {featureRows.map((feature, index) => {
           const Icon = feature.icon;
           return (
@@ -444,7 +538,7 @@ function FeatureRows() {
             >
               <div className={cn("space-y-4", index % 2 === 1 && "lg:order-2")}>
                 <p className="text-sm font-semibold uppercase text-primary">Feature</p>
-                <h2 className="text-3xl font-semibold tracking-normal sm:text-4xl lg:text-5xl">
+                <h2 className="text-2xl font-semibold tracking-normal sm:text-3xl md:text-4xl lg:text-5xl">
                   {feature.title}
                 </h2>
                 <p className="max-w-xl text-base leading-8 landing-muted">{feature.body}</p>
@@ -484,10 +578,10 @@ function AnimatedPipeline() {
   });
 
   return (
-    <section className="landing-shell mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8" id="docs">
+    <section className="landing-shell mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-24 lg:px-8" id="docs">
       <div className="max-w-3xl">
         <p className="text-sm font-semibold uppercase text-primary">How it works</p>
-        <h2 className="mt-4 text-3xl font-semibold tracking-normal sm:text-5xl lg:text-6xl">
+        <h2 className="mt-4 text-2xl font-semibold tracking-normal sm:text-4xl md:text-5xl lg:text-6xl">
           Add. Process. Search. Recall.
         </h2>
         <p className="mt-4 max-w-xl text-base leading-7 landing-muted">
@@ -584,10 +678,10 @@ function PipelineNode({
 function SpacesSection() {
   return (
     <section className="neon-section landing-shell" id="how-it-works">
-      <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-24 lg:px-8">
         <div className="max-w-3xl">
           <p className="text-sm font-semibold uppercase text-primary">Spaces</p>
-          <h2 className="mt-4 text-3xl font-semibold tracking-normal sm:text-5xl lg:text-6xl">
+          <h2 className="mt-4 text-2xl font-semibold tracking-normal sm:text-4xl md:text-5xl lg:text-6xl">
             Organize knowledge around what matters to you.
           </h2>
         </div>
@@ -611,11 +705,11 @@ function SpacesSection() {
 
 function ClosingCTA() {
   return (
-    <section className="landing-shell relative mx-auto max-w-5xl px-4 py-28 text-center sm:px-6 lg:px-8">
+    <section className="landing-shell relative mx-auto max-w-5xl px-4 py-16 text-center sm:px-6 sm:py-28 lg:px-8">
       <div className="mx-auto flex size-14 items-center justify-center rounded-2xl border bg-card">
         <BrainCircuit className="size-7 text-primary" />
       </div>
-      <h2 className="mt-8 text-3xl font-semibold tracking-normal sm:text-5xl lg:text-7xl">
+      <h2 className="mt-8 text-2xl font-semibold tracking-normal sm:text-4xl md:text-5xl lg:text-7xl">
         Remember more. Search less.
       </h2>
       <p className="mx-auto mt-6 max-w-2xl text-base leading-8 landing-muted">
@@ -635,7 +729,7 @@ function ClosingCTA() {
 function LandingFooter() {
   return (
     <footer className="neon-section landing-shell" id="about">
-      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 sm:grid-cols-2 md:grid-cols-[1fr_auto_auto_auto] lg:px-8">
+      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-10 sm:gap-8 sm:px-6 sm:py-12 sm:grid-cols-2 md:grid-cols-[1fr_auto_auto_auto] lg:px-8">
         <div>
           <div className="flex items-center gap-3 font-semibold">
             <span className="memora-wordmark text-lg">Mindshelf</span>

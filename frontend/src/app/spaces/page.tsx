@@ -9,6 +9,7 @@ import { ErrorState } from "@/components/feedback/error-state";
 import { LoadingState } from "@/components/feedback/loading-state";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
+import { syncBackendUser } from "@/lib/auth-sync";
 import {
   createSpace,
   listSpaces,
@@ -16,7 +17,7 @@ import {
 } from "@/lib/api";
 
 export default function SpacesPage() {
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
   const [spaces, setSpaces] = useState<BackendSpace[]>([]);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -28,7 +29,9 @@ export default function SpacesPage() {
     setIsLoading(true);
     setError("");
     try {
-      setSpaces(await listSpaces(user?.id));
+      if (!user) return;
+      await syncBackendUser(user);
+      setSpaces(await listSpaces(user.id));
     } catch {
       setError("Could not load spaces. Check that the Go backend is running.");
     } finally {
@@ -37,9 +40,14 @@ export default function SpacesPage() {
   }
 
   useEffect(() => {
-    if (user?.id) void loadSpaces();
+    if (!isLoaded || !user?.id) return;
+    const timeout = window.setTimeout(() => {
+      void loadSpaces();
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [isLoaded, user?.id]);
 
   async function handleCreateSpace(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

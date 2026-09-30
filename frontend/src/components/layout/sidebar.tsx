@@ -22,6 +22,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 
 import { deleteSpace, listSpaces, updateSpace, type BackendSpace } from "@/lib/api";
+import { syncBackendUser } from "@/lib/auth-sync";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 
@@ -180,10 +181,11 @@ function SidebarNav({
 
   useEffect(() => {
     if (!isLoaded || !user?.id) return;
-    const userId = user.id;
+    const currentUser = user;
 
     function loadUserSpaces() {
-      void listSpaces(userId)
+      void syncBackendUser(currentUser)
+        .then(() => listSpaces(currentUser.id))
         .then(setSpaces)
         .catch(() => setSpaces([]));
     }
@@ -191,7 +193,7 @@ function SidebarNav({
     loadUserSpaces();
     window.addEventListener("mindshelf:spaces-changed", loadUserSpaces);
     return () => window.removeEventListener("mindshelf:spaces-changed", loadUserSpaces);
-  }, [isLoaded, user?.id]);
+  }, [isLoaded, user]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -12,11 +13,15 @@ import (
 	"memora-backend/internal/ingestion"
 	"memora-backend/internal/models"
 	"memora-backend/internal/repository"
+	objectstorage "memora-backend/internal/storage"
 )
+
+var ErrFileStorageNotConfigured = errors.New("file storage is not configured")
 
 type IngestionService struct {
 	contentRepo             *repository.ContentRepository
 	spaceRepo               *repository.SpaceRepository
+	userRepo                *repository.UserRepository
 	ingestionRepo           *repository.IngestionRepository
 	extractors              map[ingestion.DetectedContentType]ingestion.Extractor
 	fileExtractors          map[ingestion.DetectedContentType]ingestion.Extractor
@@ -24,6 +29,7 @@ type IngestionService struct {
 	embeddingDimension      int
 	embeddingMaxConcurrency int
 	chunkConfig             ingestion.ChunkConfig
+	objectStore             objectstorage.ObjectStore
 }
 
 type IngestURLInput struct {
@@ -39,6 +45,7 @@ type IngestFileInput struct {
 	Name        string
 	FileName    string
 	ContentType string
+	FileSize    int64
 	Body        io.Reader
 }
 
@@ -55,7 +62,7 @@ type IngestURLResult = IngestResult
 
 type IngestionDetail = repository.StoredIngestionResult
 
-func NewIngestionService(contentRepo *repository.ContentRepository, spaceRepo *repository.SpaceRepository, ingestionRepo *repository.IngestionRepository, aiServiceURL string, embeddingDimension int, embeddingMaxConcurrency int) *IngestionService {
+func NewIngestionService(contentRepo *repository.ContentRepository, spaceRepo *repository.SpaceRepository, userRepo *repository.UserRepository, ingestionRepo *repository.IngestionRepository, aiServiceURL string, embeddingDimension int, embeddingMaxConcurrency int, objectStore objectstorage.ObjectStore) *IngestionService {
 	pythonClient := ingestion.NewPythonExtractionClient(aiServiceURL, nil)
 	embeddingClient := ingestion.NewPythonEmbeddingClient(aiServiceURL, nil, embeddingDimension)
 	if embeddingDimension <= 0 {
@@ -68,10 +75,12 @@ func NewIngestionService(contentRepo *repository.ContentRepository, spaceRepo *r
 	return &IngestionService{
 		contentRepo:             contentRepo,
 		spaceRepo:               spaceRepo,
+		userRepo:                userRepo,
 		ingestionRepo:           ingestionRepo,
 		embeddingClient:         embeddingClient,
 		embeddingDimension:      embeddingDimension,
 		embeddingMaxConcurrency: embeddingMaxConcurrency,
+		objectStore:             objectStore,
 		extractors: map[ingestion.DetectedContentType]ingestion.Extractor{
 			ingestion.DetectedContentTypeYouTube:       ingestion.NewYouTubeExtractor(pythonClient),
 			ingestion.DetectedContentTypeInstagramReel: ingestion.NewReelExtractor(pythonClient),
@@ -151,6 +160,22 @@ func (s *IngestionService) IngestFile(ctx context.Context, input IngestFileInput
 	if !ok {
 		return IngestResult{}, ingestion.ErrUnsupportedSourceType
 	}
+	if err := s.validateSpace(userID, spaceID); err != nil {
+		return IngestResult{}, err
+	}
+	if s.objectStore == nil {
+		return IngestResult{}, ErrFileStorageNotConfigured
+	}
+
+	fileBytes, err := io.ReadAll(input.Body)
+	if err != nil {
+		return IngestResult{}, err
+	}
+	fileSize := int64(len(fileBytes))
+	storedFile, err := s.storeUploadedFile(ctx, userID, s.storageOwnerName(userID), fileName, contentType, fileSize, fileBytes)
+	if err != nil {
+		return IngestResult{}, err
+	}
 
 	inputName := strings.TrimSpace(input.Name)
 	return s.runIngestion(ctx, runIngestionInput{
@@ -160,13 +185,65 @@ func (s *IngestionService) IngestFile(ctx context.Context, input IngestFileInput
 		name:        displayTitle(inputName, fileName),
 		lockName:    inputName != "",
 		contentType: modelContentTypeForDetected(detected),
+		storedFile:  storedFile,
 		extractor:   extractor,
 		extractInput: ingestion.ExtractInput{
 			FileName:    fileName,
 			ContentType: contentType,
-			Body:        input.Body,
+			Body:        bytes.NewReader(fileBytes),
 		},
 	})
+}
+
+type storedFileMetadata struct {
+	Bucket       string
+	Key          string
+	URL          string
+	OriginalName string
+	ContentType  string
+	Size         int64
+}
+
+func (s *IngestionService) storeUploadedFile(ctx context.Context, userID string, ownerName string, fileName string, contentType string, fileSize int64, fileBytes []byte) (*storedFileMetadata, error) {
+	key, err := objectstorage.NewObjectKey(ownerName, fileName)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(contentType) == "" {
+		contentType = "application/octet-stream"
+	}
+
+	meta, err := s.objectStore.PutObject(ctx, objectstorage.PutObjectInput{
+		Key:         key,
+		Body:        bytes.NewReader(fileBytes),
+		ContentType: contentType,
+		Size:        fileSize,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &storedFileMetadata{
+		Bucket:       meta.Bucket,
+		Key:          meta.Key,
+		URL:          meta.URL,
+		OriginalName: fileName,
+		ContentType:  meta.ContentType,
+		Size:         meta.Size,
+	}, nil
+}
+
+func (s *IngestionService) storageOwnerName(userID string) string {
+	if s.userRepo == nil {
+		return userID
+	}
+
+	user, err := s.userRepo.GetByID(userID)
+	if err != nil || strings.TrimSpace(user.Name) == "" {
+		return userID
+	}
+
+	return user.Name
 }
 
 func modelContentTypeForDetected(detected ingestion.DetectedContentType) models.ContentType {
@@ -219,6 +296,7 @@ type runIngestionInput struct {
 	title        string
 	contentType  models.ContentType
 	sourceURL    *string
+	storedFile   *storedFileMetadata
 	extractor    ingestion.Extractor
 	extractInput ingestion.ExtractInput
 }
@@ -229,7 +307,7 @@ func (s *IngestionService) runIngestion(ctx context.Context, input runIngestionI
 	}
 
 	now := time.Now().UTC()
-	content, err := s.contentRepo.Create(models.Content{
+	contentToCreate := models.Content{
 		UserID:      input.userID,
 		SpaceID:     input.spaceID,
 		Name:        displayTitle(input.name, input.title),
@@ -239,7 +317,10 @@ func (s *IngestionService) runIngestion(ctx context.Context, input runIngestionI
 		SourceURL:   input.sourceURL,
 		CreatedAt:   now,
 		UpdatedAt:   now,
-	})
+	}
+	applyStoredFileMetadata(&contentToCreate, input.storedFile)
+
+	content, err := s.contentRepo.Create(contentToCreate)
 	if err != nil {
 		return IngestResult{}, err
 	}
@@ -308,6 +389,30 @@ func (s *IngestionService) runIngestion(ctx context.Context, input runIngestionI
 		ContentType: input.contentType,
 		ChunkCount:  len(chunks),
 	}, nil
+}
+
+func applyStoredFileMetadata(content *models.Content, storedFile *storedFileMetadata) {
+	if storedFile == nil {
+		return
+	}
+	if strings.TrimSpace(storedFile.Bucket) != "" {
+		content.StorageBucket = &storedFile.Bucket
+	}
+	if strings.TrimSpace(storedFile.Key) != "" {
+		content.StorageKey = &storedFile.Key
+	}
+	if strings.TrimSpace(storedFile.URL) != "" {
+		content.SourceURL = &storedFile.URL
+	}
+	if strings.TrimSpace(storedFile.OriginalName) != "" {
+		content.OriginalFilename = &storedFile.OriginalName
+	}
+	if strings.TrimSpace(storedFile.ContentType) != "" {
+		content.FileContentType = &storedFile.ContentType
+	}
+	if storedFile.Size >= 0 {
+		content.FileSize = &storedFile.Size
+	}
 }
 
 func contentWithExtractedMetadata(content models.Content, cleaned ingestion.IngestionResult, lockName bool) models.Content {

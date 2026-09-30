@@ -1,12 +1,16 @@
 package routes
 
 import (
+	"context"
 	"database/sql"
+	"log/slog"
+	"strings"
 
 	"memora-backend/internal/config"
 	"memora-backend/internal/handlers"
 	"memora-backend/internal/repository"
 	"memora-backend/internal/services"
+	objectstorage "memora-backend/internal/storage"
 
 	"github.com/gin-gonic/gin"
 )
@@ -29,7 +33,7 @@ func RegisterRoutes(router *gin.Engine, db *sql.DB, cfg config.Config) {
 	contentHandler := handlers.NewContentHandler(services.NewContentService(contentRepo), contentTagService, summaryService)
 	tagHandler := handlers.NewTagHandler(services.NewTagService(tagRepo, contentTagRepo), contentTagService)
 	contentTagHandler := handlers.NewContentTagHandler(contentTagService)
-	ingestionHandler := handlers.NewIngestionHandler(services.NewIngestionService(contentRepo, spaceRepo, ingestionRepo, cfg.AIServiceURL, cfg.EmbeddingDimension, cfg.EmbeddingMaxConcurrency), userService)
+	ingestionHandler := handlers.NewIngestionHandler(services.NewIngestionService(contentRepo, spaceRepo, userRepo, ingestionRepo, cfg.AIServiceURL, cfg.EmbeddingDimension, cfg.EmbeddingMaxConcurrency, configuredObjectStore(cfg)), userService)
 	searchService := services.NewSearchService(searchRepo, cfg.AIServiceURL, cfg.EmbeddingDimension)
 	searchHandler := handlers.NewSearchHandler(searchService)
 	// === PAUSED FEATURE: RAG Service (Put on hold for upcoming release) ===
@@ -94,4 +98,21 @@ func RegisterRoutes(router *gin.Engine, db *sql.DB, cfg config.Config) {
 	tags.PUT("/:id", tagHandler.Update)
 	tags.DELETE("/:id", tagHandler.Delete)
 	tags.GET("/:id/content", tagHandler.ListContent)
+}
+
+func configuredObjectStore(cfg config.Config) objectstorage.ObjectStore {
+	region := strings.TrimSpace(cfg.Storage.AWSRegion)
+	bucket := strings.TrimSpace(cfg.Storage.S3Bucket)
+	if region == "" && bucket == "" {
+		slog.Warn("s3 object storage not configured; file uploads will fail until AWS_REGION and AWS_S3_BUCKET are set")
+		return nil
+	}
+
+	store, err := objectstorage.NewS3Store(context.Background(), region, bucket)
+	if err != nil {
+		slog.Error("s3 object storage disabled", "error", err)
+		return nil
+	}
+
+	return store
 }

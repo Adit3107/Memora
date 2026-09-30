@@ -9,6 +9,7 @@ import {
   searchMemora,
   type SearchResult,
 } from "@/lib/api";
+import { syncBackendUser } from "@/lib/auth-sync";
 
 type GlobalSearchDialogProps = {
   open: boolean;
@@ -55,8 +56,12 @@ export function GlobalSearchDialog({
     setIsSearching(true);
     setError("");
     try {
+      if (!user) {
+        throw new Error("Not signed in");
+      }
+      await syncBackendUser(user);
       const response = await searchMemora({
-        user_id: user?.id ?? "",
+        user_id: user.id,
         query: trimmed,
         mode: "hybrid",
         limit: 6,

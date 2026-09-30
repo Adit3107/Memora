@@ -85,6 +85,7 @@ func (h *IngestionHandler) IngestFile(c *gin.Context) {
 		Name:        c.PostForm("name"),
 		FileName:    header.Filename,
 		ContentType: contentType,
+		FileSize:    header.Size,
 		Body:        file,
 	})
 	if err != nil {

@@ -15,6 +15,7 @@ type PutObjectInput struct {
 type ObjectMetadata struct {
 	Bucket      string
 	Key         string
+	URL         string
 	ContentType string
 	Size        int64
 }

@@ -195,11 +195,11 @@
   }
   html {
     @apply font-sans;
-    overflow-x: hidden;
+    overflow-x: clip;
   }
   body {
     @apply bg-background text-foreground;
-    overflow-x: hidden;
+    overflow-x: clip;
     min-width: 0;
   }
   h1,
@@ -269,7 +269,8 @@
 .memora-landing {
   position: relative;
   min-height: 100vh;
-  overflow: hidden;
+  overflow-x: clip;
+  overflow-y: visible;
   background:
     radial-gradient(circle at 50% 10%, color-mix(in srgb, var(--accent-glow) 90%, transparent), transparent 30rem),
     radial-gradient(circle at 20% 18%, color-mix(in srgb, var(--accent-cyan) 18%, transparent), transparent 26rem),
@@ -403,7 +404,7 @@
 }
 
 .trust-marquee {
-  max-width: 720px;
+  max-width: min(720px, calc(100vw - 2rem));
   overflow: hidden;
   mask-image: linear-gradient(90deg, transparent, black 12%, black 88%, transparent);
 }
@@ -485,3 +486,12 @@
     animation: none !important;
   }
 }
+
+/* Mobile nav drawer */
+.mobile-nav-drawer {
+  overflow: hidden;
+  border-top: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(20px);
+}
+

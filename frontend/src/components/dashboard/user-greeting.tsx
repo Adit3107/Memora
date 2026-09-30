@@ -1,18 +1,10 @@
 "use client";
 
 import { useUser } from "@clerk/nextjs";
-import { useEffect, useState } from "react";
 
 export function UserGreeting() {
   const { user, isLoaded } = useUser();
-  const [greeting, setGreeting] = useState("Good day");
-
-  useEffect(() => {
-    const hour = new Date().getHours();
-    if (hour < 12) setGreeting("Good morning");
-    else if (hour < 17) setGreeting("Good afternoon");
-    else setGreeting("Good evening");
-  }, []);
+  const greeting = greetingForHour(new Date().getHours());
 
   const name =
     user?.firstName ||
@@ -24,4 +16,10 @@ export function UserGreeting() {
       {isLoaded && user ? `${greeting}, ${name}.` : `${greeting}.`}
     </h1>
   );
+}
+
+function greetingForHour(hour: number) {
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
 }

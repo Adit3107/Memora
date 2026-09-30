@@ -3,6 +3,8 @@ package storage
 import (
 	"context"
 	"errors"
+	"net/url"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
@@ -10,6 +12,7 @@ import (
 )
 
 type S3Store struct {
+	region string
 	bucket string
 	client *s3.Client
 }
@@ -29,6 +32,7 @@ func NewS3Store(ctx context.Context, region string, bucket string) (*S3Store, er
 	}
 
 	return &S3Store{
+		region: region,
 		bucket: bucket,
 		client: s3.NewFromConfig(cfg),
 	}, nil
@@ -49,6 +53,7 @@ func (s *S3Store) PutObject(ctx context.Context, input PutObjectInput) (ObjectMe
 	return ObjectMetadata{
 		Bucket:      s.bucket,
 		Key:         input.Key,
+		URL:         s.objectURL(input.Key),
 		ContentType: input.ContentType,
 		Size:        input.Size,
 	}, nil
@@ -76,6 +81,15 @@ func (s *S3Store) DeleteObject(ctx context.Context, key string) error {
 		Key:    aws.String(key),
 	})
 	return err
+}
+
+func (s *S3Store) objectURL(key string) string {
+	escapedParts := make([]string, 0)
+	for _, part := range strings.Split(key, "/") {
+		escapedParts = append(escapedParts, url.PathEscape(part))
+	}
+
+	return "https://" + s.bucket + ".s3." + s.region + ".amazonaws.com/" + strings.Join(escapedParts, "/")
 }
 
 // Why this file exists:

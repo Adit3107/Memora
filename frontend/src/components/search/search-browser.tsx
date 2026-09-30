@@ -15,6 +15,7 @@ import {
   type SearchMode,
   type SearchResult,
 } from "@/lib/api";
+import { syncBackendUser } from "@/lib/auth-sync";
 import type { ContentType } from "@/types/content";
 
 import { SearchResultCard } from "./search-result-card";
@@ -59,9 +60,11 @@ export function SearchBrowser() {
 
   async function loadFilters() {
     try {
+      if (!user) return;
+      await syncBackendUser(user);
       const [spaceRows, tagRows] = await Promise.all([
-        listSpaces(user?.id),
-        listTags(user?.id),
+        listSpaces(user.id),
+        listTags(user.id),
       ]);
       setSpaces(spaceRows);
       setTags(tagRows);
@@ -92,8 +95,12 @@ export function SearchBrowser() {
     setIsSearching(true);
     setError("");
     try {
+      if (!user) {
+        throw new Error("Not signed in");
+      }
+      await syncBackendUser(user);
       const response = await searchMemora({
-        user_id: user?.id ?? "",
+        user_id: user.id,
         space_id: spaceID === "all" ? undefined : spaceID,
         query: trimmedQuery,
         mode,

@@ -4,20 +4,19 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"path/filepath"
+	"regexp"
 	"strings"
-	"time"
 )
 
-func NewObjectKey(userID string, originalName string) (string, error) {
+func NewObjectKey(ownerName string, originalName string) (string, error) {
 	randomPart, err := randomHex(8)
 	if err != nil {
 		return "", err
 	}
 
-	extension := strings.ToLower(filepath.Ext(originalName))
-	datePath := time.Now().UTC().Format("2006/01/02")
+	fileName := cleanFileName(originalName)
 
-	return "users/" + cleanPathPart(userID) + "/" + datePath + "/" + randomPart + extension, nil
+	return "users/" + cleanPathPart(ownerName) + "/docs/" + randomPart + "-" + fileName, nil
 }
 
 func randomHex(byteCount int) (string, error) {
@@ -30,12 +29,28 @@ func randomHex(byteCount int) (string, error) {
 }
 
 func cleanPathPart(value string) string {
-	value = strings.TrimSpace(value)
+	value = strings.ToLower(strings.TrimSpace(value))
 	value = strings.ReplaceAll(value, "\\", "-")
 	value = strings.ReplaceAll(value, "/", "-")
+	value = strings.ReplaceAll(value, " ", "-")
+	value = regexp.MustCompile(`[^a-z0-9._-]+`).ReplaceAllString(value, "-")
+	value = strings.Trim(value, ".-_")
 
 	if value == "" {
 		return "unknown"
+	}
+
+	return value
+}
+
+func cleanFileName(value string) string {
+	value = filepath.Base(strings.TrimSpace(value))
+	value = strings.ReplaceAll(value, "\\", "-")
+	value = regexp.MustCompile(`[^A-Za-z0-9._ -]+`).ReplaceAllString(value, "-")
+	value = strings.Join(strings.Fields(value), " ")
+	value = strings.Trim(value, ".-_ ")
+	if value == "" || value == "." {
+		return "upload.bin"
 	}
 
 	return value

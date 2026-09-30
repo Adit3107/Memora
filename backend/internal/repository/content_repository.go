@@ -24,11 +24,13 @@ func (r *ContentRepository) Create(content models.Content) (models.Content, erro
 	err := r.db.QueryRowContext(ctx, `
 		INSERT INTO content (
 			user_id, space_id, name, title, description, type,
-			source_url, thumbnail_url, created_at, updated_at
+			source_url, thumbnail_url, storage_bucket, storage_key,
+			original_filename, file_content_type, file_size, created_at, updated_at
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 		RETURNING id, user_id, space_id, name, title, description, type,
-			source_url, thumbnail_url, created_at, updated_at
+			source_url, thumbnail_url, storage_bucket, storage_key,
+			original_filename, file_content_type, file_size, created_at, updated_at
 	`,
 		content.UserID,
 		content.SpaceID,
@@ -38,6 +40,11 @@ func (r *ContentRepository) Create(content models.Content) (models.Content, erro
 		content.Type,
 		content.SourceURL,
 		content.ThumbnailURL,
+		content.StorageBucket,
+		content.StorageKey,
+		content.OriginalFilename,
+		content.FileContentType,
+		content.FileSize,
 		content.CreatedAt,
 		content.UpdatedAt,
 	).Scan(
@@ -50,6 +57,11 @@ func (r *ContentRepository) Create(content models.Content) (models.Content, erro
 		&content.Type,
 		&content.SourceURL,
 		&content.ThumbnailURL,
+		&content.StorageBucket,
+		&content.StorageKey,
+		&content.OriginalFilename,
+		&content.FileContentType,
+		&content.FileSize,
 		&content.CreatedAt,
 		&content.UpdatedAt,
 	)
@@ -65,7 +77,8 @@ func (r *ContentRepository) List() ([]models.Content, error) {
 
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT id, user_id, space_id, name, title, description, type,
-			source_url, thumbnail_url, created_at, updated_at
+			source_url, thumbnail_url, storage_bucket, storage_key,
+			original_filename, file_content_type, file_size, created_at, updated_at
 		FROM content
 		ORDER BY created_at DESC
 	`)
@@ -95,7 +108,8 @@ func (r *ContentRepository) ListByUserID(userID string) ([]models.Content, error
 
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT id, user_id, space_id, name, title, description, type,
-			source_url, thumbnail_url, created_at, updated_at
+			source_url, thumbnail_url, storage_bucket, storage_key,
+			original_filename, file_content_type, file_size, created_at, updated_at
 		FROM content
 		WHERE user_id = $1
 		ORDER BY created_at DESC
@@ -127,7 +141,8 @@ func (r *ContentRepository) GetByID(id string) (models.Content, error) {
 	var content models.Content
 	err := r.db.QueryRowContext(ctx, `
 		SELECT id, user_id, space_id, name, title, description, type,
-			source_url, thumbnail_url, created_at, updated_at
+			source_url, thumbnail_url, storage_bucket, storage_key,
+			original_filename, file_content_type, file_size, created_at, updated_at
 		FROM content
 		WHERE id = $1
 	`, id).Scan(
@@ -140,6 +155,11 @@ func (r *ContentRepository) GetByID(id string) (models.Content, error) {
 		&content.Type,
 		&content.SourceURL,
 		&content.ThumbnailURL,
+		&content.StorageBucket,
+		&content.StorageKey,
+		&content.OriginalFilename,
+		&content.FileContentType,
+		&content.FileSize,
 		&content.CreatedAt,
 		&content.UpdatedAt,
 	)
@@ -159,10 +179,13 @@ func (r *ContentRepository) Update(id string, content models.Content) (models.Co
 	err := r.db.QueryRowContext(ctx, `
 		UPDATE content
 		SET user_id = $1, space_id = $2, name = $3, title = $4, description = $5,
-			type = $6, source_url = $7, thumbnail_url = $8, updated_at = $9
-		WHERE id = $10
+			type = $6, source_url = $7, thumbnail_url = $8, storage_bucket = $9,
+			storage_key = $10, original_filename = $11, file_content_type = $12,
+			file_size = $13, updated_at = $14
+		WHERE id = $15
 		RETURNING id, user_id, space_id, name, title, description, type,
-			source_url, thumbnail_url, created_at, updated_at
+			source_url, thumbnail_url, storage_bucket, storage_key,
+			original_filename, file_content_type, file_size, created_at, updated_at
 	`,
 		content.UserID,
 		content.SpaceID,
@@ -172,6 +195,11 @@ func (r *ContentRepository) Update(id string, content models.Content) (models.Co
 		content.Type,
 		content.SourceURL,
 		content.ThumbnailURL,
+		content.StorageBucket,
+		content.StorageKey,
+		content.OriginalFilename,
+		content.FileContentType,
+		content.FileSize,
 		content.UpdatedAt,
 		id,
 	).Scan(
@@ -184,6 +212,11 @@ func (r *ContentRepository) Update(id string, content models.Content) (models.Co
 		&content.Type,
 		&content.SourceURL,
 		&content.ThumbnailURL,
+		&content.StorageBucket,
+		&content.StorageKey,
+		&content.OriginalFilename,
+		&content.FileContentType,
+		&content.FileSize,
 		&content.CreatedAt,
 		&content.UpdatedAt,
 	)
@@ -230,6 +263,11 @@ func scanContent(rows *sql.Rows, content *models.Content) error {
 		&content.Type,
 		&content.SourceURL,
 		&content.ThumbnailURL,
+		&content.StorageBucket,
+		&content.StorageKey,
+		&content.OriginalFilename,
+		&content.FileContentType,
+		&content.FileSize,
 		&content.CreatedAt,
 		&content.UpdatedAt,
 	)
