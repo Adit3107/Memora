@@ -79,7 +79,7 @@ export default function SpaceDetailPage({ params }: SpaceDetailPageProps) {
         }
       } catch {
         if (!cancelled) {
-          setError("Could not load this Space. Check that the Go backend is running.");
+          setError("Could not load this Space. Please try again later.");
         }
       } finally {
         if (!cancelled) setIsLoading(false);

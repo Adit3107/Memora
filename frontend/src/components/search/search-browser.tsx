@@ -69,7 +69,7 @@ export function SearchBrowser() {
       setSpaces(spaceRows);
       setTags(tagRows);
     } catch {
-      setError("Search filters could not be loaded. Search still works if the backend is available.");
+      setError("Search filters could not be loaded. Please try again later.");
     }
   }
 
@@ -117,7 +117,7 @@ export function SearchBrowser() {
       setResults([]);
       setTotal(0);
       setHasSearched(true);
-      setError("Search couldn't be completed. Check the backend, AI service, and database, then try again.");
+      setError("Search couldn't be completed. Please try again in a moment.");
     } finally {
       setIsSearching(false);
     }

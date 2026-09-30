@@ -118,7 +118,7 @@ export function SaveContentForm() {
       setSpaceID(spaceRows[0]?.id ?? "");
       setSelectedTagNames([]);
     } catch {
-      setError("Could not load spaces and tags. Check that the Go backend is running.");
+      setError("Could not load spaces and tags. Please try again later.");
     }
   }
 
@@ -519,7 +519,7 @@ export function SaveContentForm() {
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
               {selectedSpace
                 ? `${selectedSpace.name}: ${selectedSpace.description || "No description"}`
-                : "Content will be sent to the selected backend Space."}
+                : "Content will be saved to your selected Space."}
             </p>
 
             {isProcessing ? (
@@ -585,7 +585,7 @@ export function SaveContentForm() {
             )}
           </Button>
           <p className="text-sm text-muted-foreground">
-            Requests go to the Go backend. Go handles extraction, embeddings, and storage.
+            Your content will be processed, indexed, and made searchable automatically.
           </p>
         </div>
 

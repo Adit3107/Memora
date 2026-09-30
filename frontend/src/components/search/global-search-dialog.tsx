@@ -70,7 +70,7 @@ export function GlobalSearchDialog({
       setResults(response.results);
     } catch {
       setResults([]);
-      setError("Search could not be completed. Check that the backend and AI service are running.");
+      setError("Search could not be completed. Please try again in a moment.");
     } finally {
       setIsSearching(false);
     }

@@ -484,10 +484,10 @@ export function ContentDetail({ item }: ContentDetailProps) {
         <div className="flex items-center justify-between border-b pb-4">
           <div>
             <h2 className="text-lg font-bold tracking-tight text-foreground">
-              Source & Provenance
+              Source & Details
             </h2>
             <p className="text-xs text-muted-foreground">
-              Clear attribution and ingestion pipeline details for this item
+              Attribution and processing details for this item
             </p>
           </div>
         </div>
@@ -507,29 +507,29 @@ export function ContentDetail({ item }: ContentDetailProps) {
 
           <div className="rounded-lg border bg-background/60 p-4">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Extraction Pipeline
+              Processing Method
             </p>
             <p className="mt-1.5 text-sm font-semibold text-foreground">
               {item.type === "video"
                 ? platform === "youtube"
-                  ? "yt-dlp + Faster-Whisper"
-                  : "Whisper Audio + RapidOCR Vision"
-                : "Document Text Parser"}
+                  ? "Speech-to-Text & Transcripts"
+                  : "Audio & Visual Processing"
+                : "Document Text Extraction"}
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Multimodal audio & OCR sync
+              Automated smart indexing
             </p>
           </div>
 
           <div className="rounded-lg border bg-background/60 p-4">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Vector Storage
+              Search Indexing
             </p>
             <p className="mt-1.5 text-sm font-semibold text-foreground">
-              PostgreSQL + pgvector
+              Semantic & Keyword Index
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              384d semantic chunk embeddings
+              Optimized for instant retrieval
             </p>
           </div>
 
@@ -541,7 +541,7 @@ export function ContentDetail({ item }: ContentDetailProps) {
               {item.spaceName}
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              User knowledge partition
+              Organized collection
             </p>
           </div>
         </div>

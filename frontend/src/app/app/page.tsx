@@ -67,7 +67,7 @@ export default function AppHomePage() {
         <SectionHeading
           id="quick-actions-heading"
           title="Quick actions"
-          description="Capture, browse, and retrieve knowledge from the live backend."
+          description="Capture, browse, and retrieve your saved knowledge."
         />
         <div className="grid gap-4 md:grid-cols-3">
           {quickActions.map((action) => (

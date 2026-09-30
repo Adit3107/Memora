@@ -82,7 +82,7 @@ export function LibraryBrowser() {
         )
       );
     } catch {
-      setError("Could not load your content. Check that the Go backend is running.");
+      setError("Could not load your content. Please try again later.");
     } finally {
       setIsLoading(false);
     }

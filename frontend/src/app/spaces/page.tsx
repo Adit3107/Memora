@@ -33,7 +33,7 @@ export default function SpacesPage() {
       await syncBackendUser(user);
       setSpaces(await listSpaces(user.id));
     } catch {
-      setError("Could not load spaces. Check that the Go backend is running.");
+      setError("Could not load spaces. Please try again later.");
     } finally {
       setIsLoading(false);
     }
@@ -77,7 +77,7 @@ export default function SpacesPage() {
       setError(
         caughtError instanceof Error
           ? caughtError.message
-          : "Space could not be created. Check the backend and try again."
+          : "Space could not be created. Please try again."
       );
     } finally {
       setIsSaving(false);
@@ -130,7 +130,7 @@ export default function SpacesPage() {
       ) : null}
 
       {isLoading ? (
-        <LoadingState title="Loading spaces" description="Fetching your Spaces from the backend." />
+        <LoadingState title="Loading spaces" description="Fetching your Spaces..." />
       ) : null}
 
       {!isLoading && !error && spaces.length > 0 ? (

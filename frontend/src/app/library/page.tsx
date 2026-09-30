@@ -7,7 +7,7 @@ export default function LibraryPage() {
       <PageHeader
         eyebrow="Library"
         title="Everything you saved, ready to browse."
-        description="Browse backend content records, filter by type, and open detail views for ingestion metadata."
+        description="Browse your saved items, filter by type, and view extracted details."
       />
 
       <LibraryBrowser />

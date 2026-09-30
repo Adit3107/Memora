@@ -88,22 +88,26 @@ export default function SettingsPage() {
           </div>
         </SettingsCard>
 
-        <SettingsCard title="Storage">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Demo workspace</span>
-              <span className="font-medium">Backend managed</span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-muted">
-              <div className="h-full w-2/5 rounded-full bg-primary" />
-            </div>
-          </div>
-        </SettingsCard>
-
         <SettingsCard title="About">
-          <p className="text-sm leading-6 text-muted-foreground">
-            Mindshelf frontend. Intelligent video and document second memory.
-          </p>
+          <div className="space-y-3 text-sm leading-6 text-muted-foreground">
+            <p>
+              <span className="font-semibold text-foreground">Mindshelf</span> is
+              your intelligent second memory — a personal knowledge space that
+              captures, organizes, and surfaces the content you care about.
+            </p>
+            <p>
+              Save YouTube videos, PDFs, documents, articles, and images. Mindshelf
+              extracts transcripts, text, and metadata, then lets you search by
+              meaning with semantic, keyword, or hybrid search.
+            </p>
+            <p>
+              Organize with Spaces and Tags. Recall the exact page, timestamp, or
+              idea — instantly.
+            </p>
+            <p className="text-xs text-muted-foreground/70">
+              Version 1.0 · Built with ❤️ by the Mindshelf team
+            </p>
+          </div>
         </SettingsCard>
       </section>
     </div>

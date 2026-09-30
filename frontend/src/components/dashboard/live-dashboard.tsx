@@ -73,7 +73,7 @@ export function LiveDashboard() {
       setSpaces(spaceRows);
       setContent(contentRows.map((item) => toSavedContentItem(item, spaceRows)));
     } catch {
-      setError("Could not load dashboard data from the Go backend.");
+      setError("Could not load your dashboard. Please try again later.");
     } finally {
       setIsLoading(false);
     }
@@ -84,13 +84,13 @@ export function LiveDashboard() {
       {
         label: "Saved items",
         value: String(content.length),
-        detail: "Backend content records available for retrieval",
+        detail: "Items saved and available for search",
         icon: FileText,
       },
       {
         label: "Spaces",
         value: String(spaces.length),
-        detail: "Topic collections loaded from the Go API",
+        detail: "Topic collections ready for browsing",
         icon: Search,
       },
       {
@@ -132,7 +132,7 @@ export function LiveDashboard() {
           <SectionHeading
             id="recent-content-heading"
             title="Recently added"
-            description="Live content from the backend library."
+            description="Recently saved content in your library."
           />
           <Link
             className={cn(buttonVariants({ variant: "outline" }), "w-fit")}

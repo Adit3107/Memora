@@ -33,7 +33,7 @@ export const dashboardOverview: DashboardOverviewItem[] = [
   {
     label: "Questions asked",
     value: "8",
-    detail: "Reserved for Phase 7 RAG history",
+    detail: "AI answers and search queries",
     icon: MessageCircleQuestion,
   },
 ];
@@ -41,13 +41,13 @@ export const dashboardOverview: DashboardOverviewItem[] = [
 export const quickActions: QuickAction[] = [
   {
     title: "Save content",
-    description: "Ingest a YouTube URL through Go.",
+    description: "Save YouTube videos and shorts.",
     icon: Link,
     href: "/save",
   },
   {
     title: "Upload file",
-    description: "Send a document to the backend pipeline.",
+    description: "Upload PDFs, docs, and text files.",
     icon: Upload,
     href: "/save",
   },
